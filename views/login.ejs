@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 - 중고 경매 SaaS</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/css/auth.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-header">
+            <h1>
+                <i data-lucide="gavel"></i>
+                경매 플랫폼
+            </h1>
+            <p>로그인하여 경매에 참여하세요</p>
+        </div>
+
+        <div id="errorMessage" class="error-message">
+            <i data-lucide="alert-circle"></i>
+            <span id="errorText"></span>
+        </div>
+
+        <form id="loginForm" class="auth-form" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label for="email" class="form-label">이메일</label>
+                <input
+                    type="email"
+                    id="email"
+                    class="form-input"
+                    placeholder="example@email.com"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">비밀번호</label>
+                <input
+                    type="password"
+                    id="password"
+                    class="form-input"
+                    placeholder="비밀번호를 입력하세요"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="submit-button" id="submitBtn">
+                <i data-lucide="log-in"></i>
+                로그인
+            </button>
+        </form>
+
+        <div class="auth-links">
+            <p>아직 계정이 없으신가요?</p>
+            <a href="/register">회원가입하기</a>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('submitBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+
+            // 에러 메시지 숨기기
+            errorMessage.classList.remove('active');
+
+            // 버튼 비활성화
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i data-lucide="loader"></i> 로그인 중...';
+            lucide.createIcons();
+
+            try {
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // 로그인 성공 - redirectTo 사용 (admin이면 /admin, 일반 사용자면 /)
+                    window.location.href = data.redirectTo || '/';
+                } else {
+                    // 로그인 실패
+                    errorText.textContent = data.message;
+                    errorMessage.classList.add('active');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i data-lucide="log-in"></i> 로그인';
+                    lucide.createIcons();
+                }
+            } catch (error) {
+                console.error('로그인 에러:', error);
+                errorText.textContent = '로그인 중 오류가 발생했습니다.';
+                errorMessage.classList.add('active');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="log-in"></i> 로그인';
+                lucide.createIcons();
+            }
+        }
+    </script>
+</body>
+</html>

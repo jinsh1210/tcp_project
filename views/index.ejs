@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>중고 경매 AltTap</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="header-top">
+          <h1>
+            <i data-lucide="gavel"></i>
+            중고 경매 플랫폼
+          </h1>
+          <div class="user-menu">
+            <span class="username"
+              ><i data-lucide="user"></i> <%= user.username %>님</span
+            >
+            <button class="logout-button" onclick="logout()">
+              <i data-lucide="log-out"></i>
+              로그아웃
+            </button>
+          </div>
+        </div>
+        <p class="subtitle">실시간 경매로 중고 물품을 거래하세요</p>
+
+        <div class="user-info">
+          <div class="user-balance">
+            <i data-lucide="wallet"></i>
+            <span>잔액:</span>
+            <span class="balance-amount" id="userBalance">로딩 중...</span>
+          </div>
+          <button class="add-item-button" onclick="openAddItemModal()">
+            <i data-lucide="plus-circle"></i>
+            상품 등록
+          </button>
+        </div>
+      </header>
+
+      <!-- 네비게이션 탭 -->
+      <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('auction')">
+          <i data-lucide="gavel"></i>
+          경매
+        </button>
+        <button class="nav-tab" onclick="switchTab('community')">
+          <i data-lucide="message-square"></i>
+          커뮤니티
+        </button>
+        <button class="nav-tab" onclick="switchTab('chat')">
+          <i data-lucide="message-circle"></i>
+          채팅
+        </button>
+        <a
+          href="/admin"
+          class="nav-tab admin-button"
+          id="adminTab"
+          style="display: none"
+        >
+          <i data-lucide="shield"></i>
+          관리자
+        </a>
+      </div>
+
+      <!-- 경매 탭 -->
+      <div id="auctionTab" class="tab-content">
+        <div id="itemsContainer" class="items-grid">
+          <div class="loading">
+            <i data-lucide="loader"></i>
+            경매 상품을 불러오는 중...
+          </div>
+        </div>
+      </div>
+
+      <!-- 커뮤니티 탭 -->
+      <div id="communityTab" class="tab-content" style="display: none">
+        <button
+          class="add-item-button"
+          onclick="openPostModal()"
+          style="margin-bottom: 20px"
+        >
+          <i data-lucide="plus"></i>
+          게시글 작성
+        </button>
+        <div id="postsContainer">
+          <div class="loading">
+            <i data-lucide="loader"></i>
+            게시글을 불러오는 중...
+          </div>
+        </div>
+      </div>
+
+      <!-- 채팅 탭 -->
+      <div id="chatTab" class="tab-content" style="display: none">
+        <div class="chat-container">
+          <div class="chat-messages" id="chatMessages">
+            <div class="loading">채팅방을 선택하거나 판매자에게 문의하세요</div>
+          </div>
+          <div class="chat-input-container">
+            <input
+              type="text"
+              class="chat-input"
+              id="chatInput"
+              placeholder="메시지를 입력하세요..."
+              disabled
+            />
+            <button class="chat-send-button" onclick="sendMessage()" disabled>
+              전송
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 상품 등록 모달 -->
+    <div id="addItemModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">상품 등록</h2>
+          <button class="close-button" onclick="closeAddItemModal()">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <form id="addItemForm" onsubmit="submitNewItem(event)">
+          <div class="form-group">
+            <label class="form-label">상품명</label>
+            <input type="text" class="form-input" id="itemTitle" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">상품 설명</label>
+            <textarea
+              class="form-textarea"
+              id="itemDescription"
+              required
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">시작 가격 (원)</label>
+            <input
+              type="number"
+              class="form-input"
+              id="itemPrice"
+              min="1000"
+              step="1000"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">즉시 구매가 (원, 선택사항)</label>
+            <input
+              type="number"
+              class="form-input"
+              id="itemBuyNowPrice"
+              min="1000"
+              step="1000"
+              placeholder="즉시 구매가를 설정하지 않으려면 비워두세요"
+            />
+            <small style="color: #94a3b8; margin-top: 5px; display: block"
+              >시작 가격보다 높아야 합니다</small
+            >
+          </div>
+          <div class="form-group">
+            <label class="form-label">경매 종료 시간</label>
+            <input
+              type="datetime-local"
+              class="form-input"
+              id="itemEndTime"
+              required
+            />
+          </div>
+          <button type="submit" class="submit-button">
+            <i data-lucide="check"></i>
+            등록하기
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 게시글 작성 모달 -->
+    <div id="postModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">게시글 작성</h2>
+          <button class="close-button" onclick="closePostModal()">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <form id="postForm" onsubmit="submitPost(event)">
+          <div class="form-group">
+            <label class="form-label">제목</label>
+            <input type="text" class="form-input" id="postTitle" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">내용</label>
+            <textarea
+              class="form-textarea"
+              id="postContent"
+              required
+              style="min-height: 200px"
+            ></textarea>
+          </div>
+          <button type="submit" class="submit-button">
+            <i data-lucide="check"></i>
+            작성하기
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 알림 -->
+    <div id="notification" class="notification">
+      <i data-lucide="check-circle"></i>
+      <span id="notificationMessage"></span>
+    </div>
+
+    <script>
+      const API_BASE = '/api';
+      const CURRENT_USER_ID = <%= user.id %>;
+      let currentTab = 'auction';
+      let currentChatRoom = null;
+
+      lucide.createIcons();
+
+      // 탭 전환
+      function switchTab(tab, fromEvent = true) {
+          currentTab = tab;
+
+          document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+
+          // 이벤트에서 호출된 경우만 active 클래스 추가
+          if (fromEvent && event && event.target) {
+              event.target.closest('.nav-tab').classList.add('active');
+          } else {
+              // 프로그래매틱 호출의 경우 해당 탭 버튼 찾아서 active 추가
+              const tabs = {
+                  'auction': 0,
+                  'community': 1,
+                  'chat': 2
+              };
+              const tabButtons = document.querySelectorAll('.nav-tab');
+              if (tabButtons[tabs[tab]]) {
+                  tabButtons[tabs[tab]].classList.add('active');
+              }
+          }
+
+          document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+
+          if (tab === 'auction') {
+              document.getElementById('auctionTab').style.display = 'block';
+              loadItems();
+          } else if (tab === 'community') {
+              document.getElementById('communityTab').style.display = 'block';
+              loadPosts();
+          } else if (tab === 'chat') {
+              document.getElementById('chatTab').style.display = 'block';
+              loadChatRooms();
+          }
+
+          lucide.createIcons();
+      }
+
+      // 관리자 확인
+      async function checkAdmin() {
+          try {
+              const response = await fetch('/auth/me');
+              const data = await response.json();
+              if (data.success && data.user.role === 'admin') {
+                  document.getElementById('adminTab').style.display = 'flex';
+              }
+          } catch (error) {
+              console.error('관리자 확인 에러:', error);
+          }
+      }
+
+      async function logout() {
+          try {
+              const response = await fetch('/auth/logout', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' }
+              });
+              const data = await response.json();
+              if (data.success) window.location.href = '/login';
+          } catch (error) {
+              console.error('로그아웃 에러:', error);
+          }
+      }
+
+      async function loadUserInfo() {
+          try {
+              const response = await fetch('/auth/me');
+              const data = await response.json();
+              if (data.success) {
+                  document.getElementById('userBalance').textContent = formatPrice(data.user.balance) + '원';
+              }
+          } catch (error) {
+              console.error('사용자 정보 로드 에러:', error);
+          }
+      }
+
+      // ===== 경매 기능 =====
+      async function loadItems() {
+          try {
+              const response = await fetch(`${API_BASE}/items`);
+              const data = await response.json();
+              if (data.success) displayItems(data.items);
+          } catch (error) {
+              console.error('상품 로드 에러:', error);
+          }
+      }
+
+      function displayItems(items) {
+          const container = document.getElementById('itemsContainer');
+          if (items.length === 0) {
+              container.innerHTML = '<div class="loading">진행 중인 경매가 없습니다.</div>';
+              lucide.createIcons();
+              return;
+          }
+
+          container.innerHTML = items.map(item => {
+              const endTime = new Date(item.end_time);
+              const timeRemaining = getTimeRemaining(endTime);
+              const isOwner = item.seller_id === CURRENT_USER_ID;
+
+              return `
+                  <div class="item-card">
+                      <div class="item-header">
+                          <h3 class="item-title">${item.title}</h3>
+                          <span class="item-status">
+                              <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
+                              진행중
+                          </span>
+                      </div>
+                      <p class="item-description">${item.description || '설명 없음'}</p>
+                      <div class="item-price">
+                          <div class="price-label">현재가</div>
+                          <div class="price-amount">${formatPrice(item.current_price)}원</div>
+                      </div>
+                      ${item.buy_now_price ? `
+                          <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+                              <div style="font-size: 0.85em; opacity: 0.9;">즉시 구매가</div>
+                              <div style="font-size: 1.5em; font-weight: bold; margin-top: 3px;">${formatPrice(item.buy_now_price)}원</div>
+                          </div>
+                      ` : ''}
+                      <div class="item-meta">
+                          <div class="meta-item">
+                              <i data-lucide="user" style="width: 16px; height: 16px;"></i>
+                              ${item.seller_name}
+                          </div>
+                          <div class="meta-item">
+                              <i data-lucide="clock" style="width: 16px; height: 16px;"></i>
+                              ${timeRemaining}
+                          </div>
+                          <div class="meta-item">
+                              <i data-lucide="activity" style="width: 16px; height: 16px;"></i>
+                              ${item.bid_count}회 입찰
+                          </div>
+                      </div>
+                      ${isOwner ? `
+                          <div class="item-actions">
+                              <button class="delete-button" onclick="deleteItem(${item.id})">
+                                  <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                                  삭제
+                              </button>
+                          </div>
+                      ` : `
+                          <div class="item-actions">
+                              <button class="chat-button" onclick="startChat(${item.id}, ${item.seller_id})">
+                                  <i data-lucide="message-circle" style="width: 16px; height: 16px;"></i>
+                                  채팅
+                              </button>
+                              ${item.buy_now_price ? `
+                                  <button class="chat-button" style="background: #f59e0b;" onclick="buyNow(${item.id}, ${item.buy_now_price})">
+                                      <i data-lucide="zap" style="width: 16px; height: 16px;"></i>
+                                      즉시 구매
+                                  </button>
+                              ` : ''}
+                          </div>
+                      `}
+                      <div class="bid-section">
+                          <input type="number" class="bid-input" id="bid-${item.id}"
+                                 placeholder="입찰가 입력" min="${parseInt(item.current_price) + 1000}" step="1000">
+                          <button class="bid-button" onclick="placeBid(${item.id})">
+                              <i data-lucide="gavel" style="width: 18px; height: 18px;"></i>
+                              입찰
+                          </button>
+                      </div>
+                  </div>
+              `;
+          }).join('');
+          lucide.createIcons();
+      }
+
+      async function placeBid(itemId) {
+          const bidInput = document.getElementById(`bid-${itemId}`);
+          const bidAmount = parseInt(bidInput.value);
+          if (!bidAmount) {
+              showNotification('입찰가를 입력해주세요.', 'error');
+              return;
+          }
+
+          try {
+              const response = await fetch(`${API_BASE}/bids`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ itemId, userId: CURRENT_USER_ID, bidAmount })
+              });
+              const data = await response.json();
+              if (data.success) {
+                  showNotification('입찰에 성공했습니다!', 'success');
+                  bidInput.value = '';
+                  loadItems();
+                  loadUserInfo();
+              } else {
+                  showNotification(data.message, 'error');
+              }
+          } catch (error) {
+              console.error('입찰 에러:', error);
+              showNotification('입찰에 실패했습니다.', 'error');
+          }
+      }
+
+      async function deleteItem(itemId) {
+          if (!confirm('정말 이 상품을 삭제하시겠습니까?')) return;
+
+          try {
+              const response = await fetch(`${API_BASE}/items/${itemId}`, {
+                  method: 'DELETE',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ userId: CURRENT_USER_ID })
+              });
+              const data = await response.json();
+              if (data.success) {
+                  showNotification('상품이 삭제되었습니다.', 'success');
+                  loadItems();
+              } else {
+                  showNotification(data.message, 'error');
+              }
+          } catch (error) {
+              console.error('삭제 에러:', error);
+              showNotification('삭제에 실패했습니다.', 'error');
+          }
+      }
+
+      function openAddItemModal() {
+          document.getElementById('addItemModal').classList.add('active');
+          lucide.createIcons();
+      }
+
+      function closeAddItemModal() {
+          document.getElementById('addItemModal').classList.remove('active');
+          document.getElementById('addItemForm').reset();
+      }
+
+      async function submitNewItem(event) {
+          event.preventDefault();
+          const title = document.getElementById('itemTitle').value;
+          const description = document.getElementById('itemDescription').value;
+          const startingPrice = document.getElementById('itemPrice').value;
+          const buyNowPrice = document.getElementById('itemBuyNowPrice').value;
+          const endTime = document.getElementById('itemEndTime').value;
+
+          // 즉시 구매가 유효성 검사
+          if (buyNowPrice && parseFloat(buyNowPrice) <= parseFloat(startingPrice)) {
+              showNotification('즉시 구매가는 시작 가격보다 높아야 합니다.', 'error');
+              return;
+          }
+
+          try {
+              const response = await fetch(`${API_BASE}/items`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      sellerId: CURRENT_USER_ID,
+                      title,
+                      description,
+                      startingPrice,
+                      buyNowPrice: buyNowPrice || null,
+                      endTime
+                  })
+              });
+              const data = await response.json();
+              if (data.success) {
+                  showNotification('상품이 등록되었습니다!', 'success');
+                  closeAddItemModal();
+                  loadItems();
+              } else {
+                  showNotification(data.message, 'error');
+              }
+          } catch (error) {
+              console.error('상품 등록 에러:', error);
+              showNotification('상품 등록에 실패했습니다.', 'error');
+          }
+      }
+
+      // 즉시 구매
+      async function buyNow(itemId, price) {
+          if (!confirm(`₩${formatPrice(price)}원에 이 상품을 즉시 구매하시겠습니까?\n\n구매 후 취소가 불가능합니다.`)) {
+              return;
+          }
+
+          try {
+              const response = await fetch(`${API_BASE}/buy-now`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                      itemId,
+                      userId: CURRENT_USER_ID
+                  })
+              });
+              const data = await response.json();
+
+              if (data.success) {
+                  showNotification(`🎉 ${data.message} 남은 잔액: ₩${formatPrice(data.data.remainingBalance)}`, 'success');
+                  loadItems();
+                  loadUserInfo(); // 잔액 업데이트
+              } else {
+                  if (data.required && data.current) {
+                      showNotification(`${data.message}\n필요: ₩${formatPrice(data.required)}, 현재: ₩${formatPrice(data.current)}`, 'error');
+                  } else {
+                      showNotification(data.message, 'error');
+                  }
+              }
+          } catch (error) {
+              console.error('즉시 구매 에러:', error);
+              showNotification('즉시 구매에 실패했습니다.', 'error');
+          }
+      }
+
+      // ===== 커뮤니티 기능 =====
+      async function loadPosts() {
+          try {
+              const response = await fetch('/api/community/posts');
+              const data = await response.json();
+              if (data.success) displayPosts(data.posts);
+          } catch (error) {
+              console.error('게시글 로드 에러:', error);
+          }
+      }
+
+      function displayPosts(posts) {
+          const container = document.getElementById('postsContainer');
+          if (posts.length === 0) {
+              container.innerHTML = '<div class="loading">게시글이 없습니다.</div>';
+              return;
+          }
+
+          container.innerHTML = posts.map(post => `
+              <div class="post-card">
+                  <div class="post-header">
+                      <h3 class="post-title">${post.title}</h3>
+                      <div class="post-meta">
+                          <span>${post.username}</span> ·
+                          <span>${new Date(post.created_at).toLocaleDateString()}</span>
+                      </div>
+                  </div>
+                  <p class="post-content">${post.content.substring(0, 100)}${post.content.length > 100 ? '...' : ''}</p>
+                  <div class="post-stats">
+                      <span><i data-lucide="eye" style="width: 14px; height: 14px;"></i> ${post.views}</span>
+                      <span><i data-lucide="message-square" style="width: 14px; height: 14px;"></i> ${post.comment_count}</span>
+                  </div>
+              </div>
+          `).join('');
+          lucide.createIcons();
+      }
+
+      function openPostModal() {
+          document.getElementById('postModal').classList.add('active');
+          lucide.createIcons();
+      }
+
+      function closePostModal() {
+          document.getElementById('postModal').classList.remove('active');
+          document.getElementById('postForm').reset();
+      }
+
+      async function submitPost(event) {
+          event.preventDefault();
+          const title = document.getElementById('postTitle').value;
+          const content = document.getElementById('postContent').value;
+
+          try {
+              const response = await fetch('/api/community/posts', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ userId: CURRENT_USER_ID, title, content })
+              });
+              const data = await response.json();
+              if (data.success) {
+                  showNotification('게시글이 작성되었습니다!', 'success');
+                  closePostModal();
+                  loadPosts();
+              } else {
+                  showNotification(data.message, 'error');
+              }
+          } catch (error) {
+              console.error('게시글 작성 에러:', error);
+              showNotification('게시글 작성에 실패했습니다.', 'error');
+          }
+      }
+
+      // ===== 채팅 기능 =====
+      async function startChat(itemId, sellerId) {
+          try {
+              const response = await fetch('/api/chat/rooms', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ itemId, buyerId: CURRENT_USER_ID, sellerId })
+              });
+              const data = await response.json();
+              if (data.success) {
+                  currentChatRoom = data.roomId;
+                  switchTab('chat', false);
+                  loadChatMessages(data.roomId);
+                  document.getElementById('chatInput').disabled = false;
+                  document.querySelector('.chat-send-button').disabled = false;
+              } else {
+                  showNotification(data.message || '채팅방 생성에 실패했습니다.', 'error');
+              }
+          } catch (error) {
+              console.error('채팅방 생성 에러:', error);
+              showNotification('채팅방 생성 중 오류가 발생했습니다.', 'error');
+          }
+      }
+
+      async function loadChatRooms() {
+          document.getElementById('chatMessages').innerHTML = '<div class="loading">채팅방을 선택하거나 판매자에게 문의하세요</div>';
+      }
+
+      async function loadChatMessages(roomId) {
+          try {
+              const response = await fetch(`/api/chat/rooms/${roomId}/messages`);
+              const data = await response.json();
+              if (data.success) displayMessages(data.messages);
+          } catch (error) {
+              console.error('메시지 로드 에러:', error);
+          }
+      }
+
+      function displayMessages(messages) {
+          const container = document.getElementById('chatMessages');
+          if (messages.length === 0) {
+              container.innerHTML = '<div class="loading">메시지가 없습니다. 첫 메시지를 보내보세요!</div>';
+              return;
+          }
+
+          container.innerHTML = messages.map(msg => `
+              <div class="chat-message ${msg.sender_id === CURRENT_USER_ID ? 'sent' : 'received'}">
+                  <strong>${msg.username}:</strong> ${msg.message}
+              </div>
+          `).join('');
+          container.scrollTop = container.scrollHeight;
+      }
+
+      async function sendMessage() {
+          const input = document.getElementById('chatInput');
+          const message = input.value.trim();
+          if (!message || !currentChatRoom) return;
+
+          try {
+              const response = await fetch('/api/chat/messages', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ roomId: currentChatRoom, senderId: CURRENT_USER_ID, message })
+              });
+              const data = await response.json();
+              if (data.success) {
+                  input.value = '';
+                  loadChatMessages(currentChatRoom);
+              }
+          } catch (error) {
+              console.error('메시지 전송 에러:', error);
+          }
+      }
+
+      // ===== 유틸리티 =====
+      function showNotification(message, type = 'success') {
+          const notification = document.getElementById('notification');
+          const messageEl = document.getElementById('notificationMessage');
+          messageEl.textContent = message;
+          notification.className = `notification ${type} active`;
+          setTimeout(() => notification.classList.remove('active'), 3000);
+      }
+
+      function formatPrice(price) {
+          return new Intl.NumberFormat('ko-KR').format(price);
+      }
+
+      function getTimeRemaining(endTime) {
+          const now = new Date();
+          const diff = endTime - now;
+          if (diff <= 0) return '종료';
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          if (hours > 24) {
+              const days = Math.floor(hours / 24);
+              return `${days}일 남음`;
+          }
+          return `${hours}시간 ${minutes}분 남음`;
+      }
+
+      // 초기화
+      checkAdmin();
+      loadUserInfo();
+      loadItems();
+      setInterval(() => {
+          if (currentTab === 'auction') loadItems();
+          else if (currentTab === 'community') loadPosts();
+          else if (currentTab === 'chat' && currentChatRoom) loadChatMessages(currentChatRoom);
+      }, 5000);
+      setInterval(loadUserInfo, 10000);
+
+      document.getElementById('chatInput').addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') sendMessage();
+      });
+    </script>
+  </body>
+</html>

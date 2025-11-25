@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입 - 중고 경매 SaaS</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/css/auth.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-header">
+            <h1>
+                <i data-lucide="gavel"></i>
+                경매 플랫폼
+            </h1>
+            <p>회원가입하고 경매를 시작하세요</p>
+        </div>
+
+        <div id="errorMessage" class="error-message">
+            <i data-lucide="alert-circle"></i>
+            <span id="errorText"></span>
+        </div>
+
+        <div id="successMessage" class="success-message">
+            <i data-lucide="check-circle"></i>
+            <span id="successText"></span>
+        </div>
+
+        <form id="registerForm" class="auth-form" onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label for="username" class="form-label">사용자명</label>
+                <input
+                    type="text"
+                    id="username"
+                    class="form-input"
+                    placeholder="사용자명을 입력하세요"
+                    required
+                    minlength="3"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="email" class="form-label">이메일</label>
+                <input
+                    type="email"
+                    id="email"
+                    class="form-input"
+                    placeholder="example@email.com"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">비밀번호</label>
+                <input
+                    type="password"
+                    id="password"
+                    class="form-input"
+                    placeholder="비밀번호를 입력하세요"
+                    required
+                    minlength="6"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword" class="form-label">비밀번호 확인</label>
+                <input
+                    type="password"
+                    id="confirmPassword"
+                    class="form-input"
+                    placeholder="비밀번호를 다시 입력하세요"
+                    required
+                    minlength="6"
+                >
+            </div>
+
+            <button type="submit" class="submit-button" id="submitBtn">
+                <i data-lucide="user-plus"></i>
+                회원가입
+            </button>
+        </form>
+
+        <div class="auth-links">
+            <p>이미 계정이 있으신가요?</p>
+            <a href="/login">로그인하기</a>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        async function handleRegister(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const submitBtn = document.getElementById('submitBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            const successMessage = document.getElementById('successMessage');
+            const successText = document.getElementById('successText');
+
+            // 메시지 숨기기
+            errorMessage.classList.remove('active');
+            successMessage.classList.remove('active');
+
+            // 비밀번호 확인
+            if (password !== confirmPassword) {
+                errorText.textContent = '비밀번호가 일치하지 않습니다.';
+                errorMessage.classList.add('active');
+                return;
+            }
+
+            // 버튼 비활성화
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i data-lucide="loader"></i> 회원가입 중...';
+            lucide.createIcons();
+
+            try {
+                const response = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // 회원가입 성공
+                    successText.textContent = '회원가입이 완료되었습니다! 잠시 후 메인 페이지로 이동합니다...';
+                    successMessage.classList.add('active');
+
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    // 회원가입 실패
+                    errorText.textContent = data.message;
+                    errorMessage.classList.add('active');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i data-lucide="user-plus"></i> 회원가입';
+                    lucide.createIcons();
+                }
+            } catch (error) {
+                console.error('회원가입 에러:', error);
+                errorText.textContent = '회원가입 중 오류가 발생했습니다.';
+                errorMessage.classList.add('active');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i data-lucide="user-plus"></i> 회원가입';
+                lucide.createIcons();
+            }
+        }
+    </script>
+</body>
+</html>

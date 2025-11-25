@@ -1,0 +1,27 @@
+{
+  "name": "auction-saas",
+  "version": "1.0.0",
+  "description": "SaaS 중고 경매 플랫폼",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "migrate-passwords": "node scripts/migratePasswords.js",
+    "migrate-buy-now": "node scripts/addBuyNowPrice.js"
+  },
+  "keywords": ["auction", "saas", "tcp", "udp"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mysql2": "^3.6.5",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "bcrypt": "^5.1.1",
+    "express-session": "^1.17.3",
+    "ejs": "^3.1.9"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

@@ -1,0 +1,719 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: #0f172a;
+    min-height: 100vh;
+    padding: 20px;
+    color: #e2e8f0;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+header {
+    background: #1e293b;
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid #334155;
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+h1 {
+    color: #818cf8;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 2.5em;
+}
+
+.user-menu {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.username {
+    color: #cbd5e1;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.logout-button, .admin-button {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.3s ease;
+    text-decoration: none;
+}
+
+.admin-button {
+    background: #8b5cf6;
+}
+
+.logout-button:hover, .admin-button:hover {
+    opacity: 0.8;
+}
+
+.subtitle {
+    color: #94a3b8;
+    font-size: 1.1em;
+}
+
+.user-info {
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #334155;
+}
+
+.user-balance {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.2em;
+    color: #e2e8f0;
+}
+
+.balance-amount {
+    font-weight: bold;
+    color: #818cf8;
+    font-size: 1.3em;
+}
+
+.nav-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.nav-tab {
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-tab:hover {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+.nav-tab.active {
+    background: #818cf8;
+    color: white;
+    border-color: #818cf8;
+}
+
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+.item-card {
+    background: #1e293b;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid #334155;
+}
+
+.item-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border-color: #475569;
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 15px;
+}
+
+.item-title {
+    font-size: 1.4em;
+    color: #f1f5f9;
+    font-weight: bold;
+    flex: 1;
+}
+
+.item-status {
+    background: #10b981;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.item-description {
+    color: #94a3b8;
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.item-price {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+}
+
+.price-label {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.price-amount {
+    font-size: 1.8em;
+    font-weight: bold;
+    margin-top: 5px;
+}
+
+.item-meta {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    color: #94a3b8;
+    font-size: 0.95em;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.item-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.delete-button, .chat-button {
+    flex: 1;
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: opacity 0.3s ease;
+}
+
+.chat-button {
+    background: #3b82f6;
+}
+
+.delete-button:hover, .chat-button:hover {
+    opacity: 0.8;
+}
+
+.bid-section {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.bid-input {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    font-size: 1em;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+.bid-input:focus {
+    outline: none;
+    border-color: #818cf8;
+}
+
+.bid-button {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.3s ease;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.bid-button:hover {
+    opacity: 0.9;
+}
+
+.bid-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.add-item-button {
+    background: #1e293b;
+    color: #818cf8;
+    border: 2px solid #818cf8;
+    padding: 15px 30px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+}
+
+.add-item-button:hover {
+    background: #818cf8;
+    color: white;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: #1e293b;
+    border-radius: 15px;
+    padding: 30px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid #334155;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.modal-title {
+    font-size: 1.8em;
+    color: #f1f5f9;
+    font-weight: bold;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 5px;
+    transition: color 0.3s ease;
+}
+
+.close-button:hover {
+    color: #e2e8f0;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #e2e8f0;
+    font-weight: 600;
+}
+
+.form-input, .form-textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    font-size: 1em;
+    font-family: inherit;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-input:focus, .form-textarea:focus {
+    outline: none;
+    border-color: #818cf8;
+}
+
+.submit-button {
+    width: 100%;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    border: none;
+    padding: 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.submit-button:hover {
+    opacity: 0.9;
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    gap: 15px;
+    z-index: 2000;
+    min-width: 300px;
+    border: 1px solid #334155;
+}
+
+.notification.active {
+    display: flex;
+}
+
+.notification.success {
+    border-left: 4px solid #10b981;
+}
+
+.notification.error {
+    border-left: 4px solid #ef4444;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #94a3b8;
+    font-size: 1.2em;
+}
+
+/* 커뮤니티 스타일 */
+.post-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.post-card:hover {
+    border-color: #475569;
+    transform: translateX(5px);
+}
+
+.post-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 10px;
+}
+
+.post-title {
+    font-size: 1.3em;
+    color: #f1f5f9;
+    font-weight: 600;
+}
+
+.post-meta {
+    color: #64748b;
+    font-size: 0.9em;
+}
+
+.post-content {
+    color: #94a3b8;
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.post-stats {
+    display: flex;
+    gap: 20px;
+    color: #64748b;
+    font-size: 0.9em;
+}
+
+/* 채팅 스타일 */
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 500px;
+    background: #1e293b;
+    border-radius: 10px;
+    border: 1px solid #334155;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chat-message {
+    max-width: 70%;
+    padding: 10px 15px;
+    border-radius: 10px;
+    word-wrap: break-word;
+}
+
+.chat-message.sent {
+    align-self: flex-end;
+    background: #6366f1;
+    color: white;
+}
+
+.chat-message.received {
+    align-self: flex-start;
+    background: #334155;
+    color: #e2e8f0;
+}
+
+.chat-input-container {
+    padding: 15px;
+    border-top: 1px solid #334155;
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 10px;
+    border: 2px solid #334155;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+.chat-send-button {
+    background: #6366f1;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+/* 반응형 미디어 쿼리 */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    h1 {
+        font-size: 1.8em;
+        gap: 10px;
+    }
+
+    header {
+        padding: 20px;
+    }
+
+    .header-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .user-menu {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .nav-tabs {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .nav-tab {
+        padding: 10px 16px;
+        font-size: 0.9em;
+    }
+
+    .items-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 15px;
+    }
+
+    .item-card {
+        padding: 20px;
+    }
+
+    .item-title {
+        font-size: 1.2em;
+    }
+
+    .price-amount {
+        font-size: 1.5em;
+    }
+
+    .bid-section {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .bid-button {
+        width: 100%;
+        justify-content: center;
+        padding: 12px;
+    }
+
+    .modal-content {
+        width: 95%;
+        padding: 20px;
+    }
+
+    .modal-title {
+        font-size: 1.5em;
+    }
+
+    .user-info {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+
+    .chat-container {
+        height: 400px;
+    }
+
+    .chat-message {
+        max-width: 85%;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 1.5em;
+    }
+
+    .subtitle {
+        font-size: 1em;
+    }
+
+    .items-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .item-meta {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .item-actions {
+        flex-direction: column;
+    }
+
+    .delete-button, .chat-button {
+        width: 100%;
+    }
+
+    .nav-tab {
+        flex: 1;
+        justify-content: center;
+        padding: 10px;
+        font-size: 0.85em;
+    }
+
+    .user-balance {
+        font-size: 1em;
+    }
+
+    .balance-amount {
+        font-size: 1.1em;
+    }
+
+    .notification {
+        right: 10px;
+        left: 10px;
+        min-width: unset;
+    }
+
+    .post-card {
+        padding: 15px;
+    }
+
+    .post-title {
+        font-size: 1.1em;
+    }
+}
