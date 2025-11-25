@@ -50,10 +50,6 @@
           <i data-lucide="message-square"></i>
           커뮤니티
         </button>
-        <button class="nav-tab" onclick="switchTab('chat')">
-          <i data-lucide="message-circle"></i>
-          채팅
-        </button>
         <a
           href="/admin"
           class="nav-tab admin-button"
@@ -89,27 +85,6 @@
           <div class="loading">
             <i data-lucide="loader"></i>
             게시글을 불러오는 중...
-          </div>
-        </div>
-      </div>
-
-      <!-- 채팅 탭 -->
-      <div id="chatTab" class="tab-content" style="display: none">
-        <div class="chat-container">
-          <div class="chat-messages" id="chatMessages">
-            <div class="loading">채팅방을 선택하거나 판매자에게 문의하세요</div>
-          </div>
-          <div class="chat-input-container">
-            <input
-              type="text"
-              class="chat-input"
-              id="chatInput"
-              placeholder="메시지를 입력하세요..."
-              disabled
-            />
-            <button class="chat-send-button" onclick="sendMessage()" disabled>
-              전송
-            </button>
           </div>
         </div>
       </div>
@@ -220,7 +195,6 @@
       const API_BASE = '/api';
       const CURRENT_USER_ID = <%= user.id %>;
       let currentTab = 'auction';
-      let currentChatRoom = null;
 
       lucide.createIcons();
 
@@ -238,7 +212,6 @@
               const tabs = {
                   'auction': 0,
                   'community': 1,
-                  'chat': 2
               };
               const tabButtons = document.querySelectorAll('.nav-tab');
               if (tabButtons[tabs[tab]]) {
@@ -254,9 +227,6 @@
           } else if (tab === 'community') {
               document.getElementById('communityTab').style.display = 'block';
               loadPosts();
-          } else if (tab === 'chat') {
-              document.getElementById('chatTab').style.display = 'block';
-              loadChatRooms();
           }
 
           lucide.createIcons();
@@ -367,10 +337,6 @@
                           </div>
                       ` : `
                           <div class="item-actions">
-                              <button class="chat-button" onclick="startChat(${item.id}, ${item.seller_id})">
-                                  <i data-lucide="message-circle" style="width: 16px; height: 16px;"></i>
-                                  채팅
-                              </button>
                               ${item.buy_now_price ? `
                                   <button class="chat-button" style="background: #f59e0b;" onclick="buyNow(${item.id}, ${item.buy_now_price})">
                                       <i data-lucide="zap" style="width: 16px; height: 16px;"></i>
@@ -601,80 +567,6 @@
           }
       }
 
-      // ===== 채팅 기능 =====
-      async function startChat(itemId, sellerId) {
-          try {
-              const response = await fetch('/api/chat/rooms', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ itemId, buyerId: CURRENT_USER_ID, sellerId })
-              });
-              const data = await response.json();
-              if (data.success) {
-                  currentChatRoom = data.roomId;
-                  switchTab('chat', false);
-                  loadChatMessages(data.roomId);
-                  document.getElementById('chatInput').disabled = false;
-                  document.querySelector('.chat-send-button').disabled = false;
-              } else {
-                  showNotification(data.message || '채팅방 생성에 실패했습니다.', 'error');
-              }
-          } catch (error) {
-              console.error('채팅방 생성 에러:', error);
-              showNotification('채팅방 생성 중 오류가 발생했습니다.', 'error');
-          }
-      }
-
-      async function loadChatRooms() {
-          document.getElementById('chatMessages').innerHTML = '<div class="loading">채팅방을 선택하거나 판매자에게 문의하세요</div>';
-      }
-
-      async function loadChatMessages(roomId) {
-          try {
-              const response = await fetch(`/api/chat/rooms/${roomId}/messages`);
-              const data = await response.json();
-              if (data.success) displayMessages(data.messages);
-          } catch (error) {
-              console.error('메시지 로드 에러:', error);
-          }
-      }
-
-      function displayMessages(messages) {
-          const container = document.getElementById('chatMessages');
-          if (messages.length === 0) {
-              container.innerHTML = '<div class="loading">메시지가 없습니다. 첫 메시지를 보내보세요!</div>';
-              return;
-          }
-
-          container.innerHTML = messages.map(msg => `
-              <div class="chat-message ${msg.sender_id === CURRENT_USER_ID ? 'sent' : 'received'}">
-                  <strong>${msg.username}:</strong> ${msg.message}
-              </div>
-          `).join('');
-          container.scrollTop = container.scrollHeight;
-      }
-
-      async function sendMessage() {
-          const input = document.getElementById('chatInput');
-          const message = input.value.trim();
-          if (!message || !currentChatRoom) return;
-
-          try {
-              const response = await fetch('/api/chat/messages', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ roomId: currentChatRoom, senderId: CURRENT_USER_ID, message })
-              });
-              const data = await response.json();
-              if (data.success) {
-                  input.value = '';
-                  loadChatMessages(currentChatRoom);
-              }
-          } catch (error) {
-              console.error('메시지 전송 에러:', error);
-          }
-      }
-
       // ===== 유틸리티 =====
       function showNotification(message, type = 'success') {
           const notification = document.getElementById('notification');
@@ -705,16 +597,14 @@
       checkAdmin();
       loadUserInfo();
       loadItems();
+
+      // 경매와 커뮤니티는 5초마다 업데이트
       setInterval(() => {
           if (currentTab === 'auction') loadItems();
           else if (currentTab === 'community') loadPosts();
-          else if (currentTab === 'chat' && currentChatRoom) loadChatMessages(currentChatRoom);
       }, 5000);
-      setInterval(loadUserInfo, 10000);
 
-      document.getElementById('chatInput').addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') sendMessage();
-      });
+      setInterval(loadUserInfo, 10000);
     </script>
   </body>
 </html>
