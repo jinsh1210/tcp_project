@@ -124,6 +124,17 @@ const UDP_PORT = process.env.UDP_PORT || 5000;
 const udpServer = new UDPServer(UDP_PORT);
 udpServer.start();
 
+// 경매 종료 처리 스케줄러 (30초마다 실행)
+const AUCTION_CHECK_INTERVAL = 30 * 1000; // 30초
+setInterval(() => {
+  apiRoutes.processExpiredAuctions();
+}, AUCTION_CHECK_INTERVAL);
+
+// 서버 시작 시 한 번 실행
+apiRoutes.processExpiredAuctions();
+
+console.log("경매 종료 처리 스케줄러 시작 (30초마다 확인)");
+
 // 프로세스 종료 처리
 process.on("SIGINT", () => {
   console.log("\n서버를 종료합니다...");
@@ -131,8 +142,6 @@ process.on("SIGINT", () => {
   process.exit(0);
 });
 
-console.log("\n=================================");
-console.log("중고 경매 SaaS 플랫폼");
 console.log("=================================");
 console.log(`HTTP 서버: http://localhost:${HTTP_PORT}`);
 console.log(`TCP 서버: localhost:${TCP_PORT}`);

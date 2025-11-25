@@ -319,4 +319,95 @@ router.delete('/items/:id', async (req, res) => {
     }
 });
 
+// 종료된 경매 처리 함수
+async function processExpiredAuctions() {
+    try {
+        // 종료 시간이 지났지만 아직 active 상태인 경매 찾기
+        const [expiredItems] = await db.query(`
+            SELECT * FROM items
+            WHERE status = 'active' AND end_time <= NOW()
+        `);
+
+        for (const item of expiredItems) {
+            // 최고 입찰 찾기
+            const [highestBid] = await db.query(`
+                SELECT * FROM bids
+                WHERE item_id = ?
+                ORDER BY bid_amount DESC
+                LIMIT 1
+            `, [item.id]);
+
+            const connection = await db.getConnection();
+            await connection.beginTransaction();
+
+            try {
+                if (highestBid.length > 0) {
+                    // 입찰이 있는 경우 - 최고 입찰자에게 판매
+                    const bid = highestBid[0];
+
+                    // 구매자 잔액 확인
+                    const [buyer] = await connection.query(
+                        'SELECT balance FROM users WHERE id = ?',
+                        [bid.user_id]
+                    );
+
+                    if (buyer.length > 0 && buyer[0].balance >= bid.bid_amount) {
+                        // 구매자 잔액 차감
+                        await connection.query(
+                            'UPDATE users SET balance = balance - ? WHERE id = ?',
+                            [bid.bid_amount, bid.user_id]
+                        );
+
+                        // 판매자 잔액 증가
+                        await connection.query(
+                            'UPDATE users SET balance = balance + ? WHERE id = ?',
+                            [bid.bid_amount, item.seller_id]
+                        );
+
+                        // 상품 상태를 sold로 변경
+                        await connection.query(
+                            'UPDATE items SET status = "sold" WHERE id = ?',
+                            [item.id]
+                        );
+
+                        // 거래 기록 생성
+                        await connection.query(
+                            'INSERT INTO transactions (item_id, buyer_id, seller_id, final_price, status) VALUES (?, ?, ?, ?, "completed")',
+                            [item.id, bid.user_id, item.seller_id, bid.bid_amount]
+                        );
+
+                        console.log(`경매 종료: 상품 ID ${item.id}, 낙찰가 ${bid.bid_amount}원`);
+                    } else {
+                        // 잔액 부족 - 경매 만료 처리
+                        await connection.query(
+                            'UPDATE items SET status = "expired" WHERE id = ?',
+                            [item.id]
+                        );
+                        console.log(`경매 만료: 상품 ID ${item.id} (구매자 잔액 부족)`);
+                    }
+                } else {
+                    // 입찰이 없는 경우 - 만료 처리
+                    await connection.query(
+                        'UPDATE items SET status = "expired" WHERE id = ?',
+                        [item.id]
+                    );
+                    console.log(`경매 만료: 상품 ID ${item.id} (입찰 없음)`);
+                }
+
+                await connection.commit();
+            } catch (error) {
+                await connection.rollback();
+                console.error(`경매 처리 에러 (상품 ID: ${item.id}):`, error);
+            } finally {
+                connection.release();
+            }
+        }
+    } catch (error) {
+        console.error('종료된 경매 처리 에러:', error);
+    }
+}
+
+// 경매 처리 함수를 외부에서 호출할 수 있도록 export
+router.processExpiredAuctions = processExpiredAuctions;
+
 module.exports = router;

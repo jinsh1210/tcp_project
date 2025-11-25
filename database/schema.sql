@@ -54,30 +54,6 @@ CREATE TABLE IF NOT EXISTS transactions (
     FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- 채팅방 테이블
-CREATE TABLE IF NOT EXISTS chat_rooms (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    item_id INT NOT NULL,
-    buyer_id INT NOT NULL,
-    seller_id INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
-    FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_chat (item_id, buyer_id, seller_id)
-);
-
--- 채팅 메시지 테이블
-CREATE TABLE IF NOT EXISTS chat_messages (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    room_id INT NOT NULL,
-    sender_id INT NOT NULL,
-    message TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
-    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
 -- 커뮤니티 게시판 테이블
 CREATE TABLE IF NOT EXISTS community_posts (
     id INT AUTO_INCREMENT PRIMARY KEY,

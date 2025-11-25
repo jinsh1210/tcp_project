@@ -13,7 +13,7 @@
         <div class="header-top">
           <h1>
             <i data-lucide="gavel"></i>
-            중고 경매 플랫폼
+            AltTap
           </h1>
           <div class="user-menu">
             <span class="username"
@@ -185,6 +185,19 @@
       </div>
     </div>
 
+    <!-- 게시글 상세 모달 -->
+    <div id="postDetailModal" class="modal">
+      <div class="modal-content" style="max-width: 700px">
+        <div class="modal-header">
+          <h2 class="modal-title" id="detailPostTitle"></h2>
+          <button class="close-button" onclick="closePostDetailModal()">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div id="postDetailContent"></div>
+      </div>
+    </div>
+
     <!-- 알림 -->
     <div id="notification" class="notification">
       <i data-lucide="check-circle"></i>
@@ -293,14 +306,15 @@
               const endTime = new Date(item.end_time);
               const timeRemaining = getTimeRemaining(endTime);
               const isOwner = item.seller_id === CURRENT_USER_ID;
+              const isExpired = new Date() >= endTime;
 
               return `
                   <div class="item-card">
                       <div class="item-header">
                           <h3 class="item-title">${item.title}</h3>
-                          <span class="item-status">
-                              <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
-                              진행중
+                          <span class="item-status" style="background: ${isExpired ? '#6b7280' : '#10b981'};">
+                              <i data-lucide="${isExpired ? 'x-circle' : 'zap'}" style="width: 14px; height: 14px;"></i>
+                              ${isExpired ? '종료' : '진행중'}
                           </span>
                       </div>
                       <p class="item-description">${item.description || '설명 없음'}</p>
@@ -337,7 +351,7 @@
                           </div>
                       ` : `
                           <div class="item-actions">
-                              ${item.buy_now_price ? `
+                              ${item.buy_now_price && !isExpired ? `
                                   <button class="chat-button" style="background: #f59e0b;" onclick="buyNow(${item.id}, ${item.buy_now_price})">
                                       <i data-lucide="zap" style="width: 16px; height: 16px;"></i>
                                       즉시 구매
@@ -345,6 +359,7 @@
                               ` : ''}
                           </div>
                       `}
+                      ${!isExpired ? `
                       <div class="bid-section">
                           <input type="number" class="bid-input" id="bid-${item.id}"
                                  placeholder="입찰가 입력" min="${parseInt(item.current_price) + 1000}" step="1000">
@@ -353,6 +368,12 @@
                               입찰
                           </button>
                       </div>
+                      ` : `
+                      <div style="background: #334155; padding: 15px; border-radius: 8px; text-align: center; color: #94a3b8;">
+                          <i data-lucide="clock" style="width: 18px; height: 18px;"></i>
+                          경매가 종료되었습니다
+                      </div>
+                      `}
                   </div>
               `;
           }).join('');
@@ -514,7 +535,7 @@
           }
 
           container.innerHTML = posts.map(post => `
-              <div class="post-card">
+              <div class="post-card" onclick="openPostDetail(${post.id})">
                   <div class="post-header">
                       <h3 class="post-title">${post.title}</h3>
                       <div class="post-meta">
@@ -530,6 +551,89 @@
               </div>
           `).join('');
           lucide.createIcons();
+      }
+
+      async function openPostDetail(postId) {
+          try {
+              const response = await fetch(`/api/community/posts/${postId}`);
+              const data = await response.json();
+
+              if (data.success) {
+                  const post = data.post;
+                  const comments = data.comments;
+
+                  document.getElementById('detailPostTitle').textContent = post.title;
+
+                  const commentsHtml = comments.length > 0
+                      ? comments.map(comment => `
+                          <div class="comment-item">
+                              <div class="comment-header">
+                                  <span class="comment-author">${comment.username}</span>
+                                  <span class="comment-date">${new Date(comment.created_at).toLocaleString()}</span>
+                              </div>
+                              <p class="comment-content">${comment.content}</p>
+                          </div>
+                      `).join('')
+                      : '<div class="loading">댓글이 없습니다.</div>';
+
+                  document.getElementById('postDetailContent').innerHTML = `
+                      <div class="post-detail-meta">
+                          <span>${post.username}</span> ·
+                          <span>${new Date(post.created_at).toLocaleString()}</span> ·
+                          <span>조회 ${post.views}</span>
+                      </div>
+                      <div class="post-detail-body">${post.content}</div>
+                      <hr style="border: none; border-top: 1px solid #334155; margin: 20px 0;">
+                      <h3 class="comments-title">
+                          <i data-lucide="message-square" style="width: 18px; height: 18px;"></i>
+                          댓글 ${comments.length}개
+                      </h3>
+                      <div class="comments-list">${commentsHtml}</div>
+                      <form class="comment-form" onsubmit="submitComment(event, ${postId})">
+                          <textarea class="form-textarea" id="commentContent" placeholder="댓글을 입력하세요..." required style="min-height: 80px;"></textarea>
+                          <button type="submit" class="submit-button" style="margin-top: 10px;">
+                              <i data-lucide="send" style="width: 16px; height: 16px;"></i>
+                              댓글 작성
+                          </button>
+                      </form>
+                  `;
+
+                  document.getElementById('postDetailModal').classList.add('active');
+                  lucide.createIcons();
+              }
+          } catch (error) {
+              console.error('게시글 상세 조회 에러:', error);
+              showNotification('게시글을 불러오는데 실패했습니다.', 'error');
+          }
+      }
+
+      function closePostDetailModal() {
+          document.getElementById('postDetailModal').classList.remove('active');
+      }
+
+      async function submitComment(event, postId) {
+          event.preventDefault();
+          const content = document.getElementById('commentContent').value;
+
+          try {
+              const response = await fetch('/api/community/comments', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ postId, userId: CURRENT_USER_ID, content })
+              });
+              const data = await response.json();
+
+              if (data.success) {
+                  showNotification('댓글이 작성되었습니다!', 'success');
+                  closePostDetailModal();
+                  loadPosts();
+              } else {
+                  showNotification(data.message, 'error');
+              }
+          } catch (error) {
+              console.error('댓글 작성 에러:', error);
+              showNotification('댓글 작성에 실패했습니다.', 'error');
+          }
       }
 
       function openPostModal() {
