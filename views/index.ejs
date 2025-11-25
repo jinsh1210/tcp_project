@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>중고 경매 AltTap</title>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="/css/style.css" />
   </head>
@@ -32,6 +33,11 @@
             <i data-lucide="wallet"></i>
             <span>잔액:</span>
             <span class="balance-amount" id="userBalance">로딩 중...</span>
+          </div>
+          <div class="user-balance" style="color: #10b981;">
+            <i data-lucide="users"></i>
+            <span id="onlineUsers">1</span>
+            <span>명 접속 중</span>
           </div>
           <button class="add-item-button" onclick="openAddItemModal()">
             <i data-lucide="plus-circle"></i>
@@ -208,6 +214,63 @@
       const API_BASE = '/api';
       const CURRENT_USER_ID = <%= user.id %>;
       let currentTab = 'auction';
+
+      // WebSocket 연결
+      const socket = io();
+
+      // 연결 성공
+      socket.on('connect', () => {
+        console.log('✓ WebSocket 연결됨:', socket.id);
+      });
+
+      // 실시간 접속자 수 업데이트
+      socket.on('user_count', (count) => {
+        document.getElementById('onlineUsers').textContent = count;
+        lucide.createIcons();
+      });
+
+      // 실시간 입찰 알림
+      socket.on('new_bid', (data) => {
+        console.log('새로운 입찰:', data);
+        showNotification(`${data.bidderName}님이 ${data.itemTitle}에 ${data.newPrice.toLocaleString()}원 입찰!`, 'success');
+
+        // 현재 경매 탭이면 목록 새로고침
+        if (currentTab === 'auction') {
+          loadItems();
+        }
+      });
+
+      // 실시간 경매 종료 알림
+      socket.on('auction_ended', (data) => {
+        console.log('경매 종료:', data);
+
+        if (data.status === 'sold') {
+          showNotification(`🎉 ${data.itemTitle} 경매 종료! ${data.winnerName}님이 ${data.finalPrice.toLocaleString()}원에 낙찰!`, 'success');
+        } else {
+          showNotification(`${data.itemTitle} 경매가 종료되었습니다.`, 'error');
+        }
+
+        // 목록 새로고침
+        if (currentTab === 'auction') {
+          loadItems();
+        }
+      });
+
+      // 실시간 즉시 구매 알림
+      socket.on('item_sold', (data) => {
+        console.log('즉시 구매:', data);
+        showNotification(`⚡ ${data.buyerName}님이 ${data.itemTitle}을(를) 즉시 구매!`, 'success');
+
+        // 목록 새로고침
+        if (currentTab === 'auction') {
+          loadItems();
+        }
+      });
+
+      // 연결 해제
+      socket.on('disconnect', () => {
+        console.log('✗ WebSocket 연결 해제');
+      });
 
       lucide.createIcons();
 

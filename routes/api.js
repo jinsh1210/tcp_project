@@ -2,6 +2,17 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 
+// Socket.IO 인스턴스 저장
+let io = null;
+
+// Socket.IO 설정 함수
+function setSocketIO(socketIO) {
+    io = socketIO;
+    console.log('✓ Socket.IO가 API 라우터에 연결되었습니다.');
+}
+
+router.setSocketIO = setSocketIO;
+
 // 모든 경매 상품 조회
 router.get('/items', async (req, res) => {
     try {
@@ -133,6 +144,21 @@ router.post('/bids', async (req, res) => {
             [bidAmount, itemId]
         );
 
+        // 사용자 이름 조회
+        const [bidUser] = await db.query('SELECT username FROM users WHERE id = ?', [userId]);
+        const username = bidUser[0].username;
+
+        // WebSocket으로 모든 클라이언트에게 실시간 알림
+        if (io) {
+            io.emit('new_bid', {
+                itemId,
+                itemTitle: item.title,
+                newPrice: bidAmount,
+                bidderName: username,
+                bidCount: await getBidCount(itemId)
+            });
+        }
+
         res.json({
             success: true,
             message: '입찰에 성공했습니다.',
@@ -260,6 +286,18 @@ router.post('/buy-now', async (req, res) => {
             await connection.commit();
             connection.release();
 
+            // WebSocket으로 즉시 구매 알림
+            if (io) {
+                const [buyerInfo] = await db.query('SELECT username FROM users WHERE id = ?', [userId]);
+                io.emit('item_sold', {
+                    itemId,
+                    itemTitle: item.title,
+                    price: item.buy_now_price,
+                    buyerName: buyerInfo[0].username,
+                    type: 'buy_now'
+                });
+            }
+
             res.json({
                 success: true,
                 message: '즉시 구매가 완료되었습니다!',
@@ -377,6 +415,18 @@ async function processExpiredAuctions() {
                         );
 
                         console.log(`경매 종료: 상품 ID ${item.id}, 낙찰가 ${bid.bid_amount}원`);
+
+                        // WebSocket으로 경매 종료 알림
+                        if (io) {
+                            const [winnerInfo] = await connection.query('SELECT username FROM users WHERE id = ?', [bid.user_id]);
+                            io.emit('auction_ended', {
+                                itemId: item.id,
+                                itemTitle: item.title,
+                                finalPrice: bid.bid_amount,
+                                winnerName: winnerInfo[0].username,
+                                status: 'sold'
+                            });
+                        }
                     } else {
                         // 잔액 부족 - 경매 만료 처리
                         await connection.query(
@@ -384,6 +434,16 @@ async function processExpiredAuctions() {
                             [item.id]
                         );
                         console.log(`경매 만료: 상품 ID ${item.id} (구매자 잔액 부족)`);
+
+                        // WebSocket으로 경매 만료 알림
+                        if (io) {
+                            io.emit('auction_ended', {
+                                itemId: item.id,
+                                itemTitle: item.title,
+                                status: 'expired',
+                                reason: 'insufficient_balance'
+                            });
+                        }
                     }
                 } else {
                     // 입찰이 없는 경우 - 만료 처리
@@ -392,6 +452,16 @@ async function processExpiredAuctions() {
                         [item.id]
                     );
                     console.log(`경매 만료: 상품 ID ${item.id} (입찰 없음)`);
+
+                    // WebSocket으로 경매 만료 알림
+                    if (io) {
+                        io.emit('auction_ended', {
+                            itemId: item.id,
+                            itemTitle: item.title,
+                            status: 'expired',
+                            reason: 'no_bids'
+                        });
+                    }
                 }
 
                 await connection.commit();
@@ -405,6 +475,12 @@ async function processExpiredAuctions() {
     } catch (error) {
         console.error('종료된 경매 처리 에러:', error);
     }
+}
+
+// 입찰 횟수 조회 헬퍼 함수
+async function getBidCount(itemId) {
+    const [result] = await db.query('SELECT COUNT(*) as count FROM bids WHERE item_id = ?', [itemId]);
+    return result[0].count;
 }
 
 // 경매 처리 함수를 외부에서 호출할 수 있도록 export

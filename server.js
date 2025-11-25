@@ -3,14 +3,21 @@ const express = require("express");
 const session = require("express-session");
 const cors = require("cors");
 const path = require("path");
-const TCPServer = require("./servers/tcpServer");
-const UDPServer = require("./servers/udpServer");
+const http = require("http");
+const { Server } = require("socket.io");
 const apiRoutes = require("./routes/api");
 const authRoutes = require("./routes/auth");
 const communityRoutes = require("./routes/community");
 const adminRoutes = require("./routes/admin");
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 // View Engine 설정
 app.set("view engine", "ejs");
@@ -107,22 +114,25 @@ app.get("/admin", requireAuth, async (req, res) => {
   }
 });
 
-// HTTP 서버 시작
-const HTTP_PORT = process.env.HTTP_PORT || 3000;
-app.listen(HTTP_PORT, () => {
-  console.log(`HTTP 서버가 포트 ${HTTP_PORT}에서 실행 중입니다.`);
-  console.log(`웹 인터페이스: http://localhost:${HTTP_PORT}`);
+// WebSocket 연결 관리
+let connectedUsers = 0;
+
+io.on('connection', (socket) => {
+  connectedUsers++;
+  console.log(`✓ 사용자 연결: ${socket.id} (현재 ${connectedUsers}명 접속)`);
+
+  // 모든 클라이언트에게 접속자 수 전송
+  io.emit('user_count', connectedUsers);
+
+  socket.on('disconnect', () => {
+    connectedUsers--;
+    console.log(`✗ 사용자 연결 해제: ${socket.id} (현재 ${connectedUsers}명 접속)`);
+    io.emit('user_count', connectedUsers);
+  });
 });
 
-// TCP 서버 시작
-const TCP_PORT = process.env.TCP_PORT || 4000;
-const tcpServer = new TCPServer(TCP_PORT);
-tcpServer.start();
-
-// UDP 서버 시작
-const UDP_PORT = process.env.UDP_PORT || 5000;
-const udpServer = new UDPServer(UDP_PORT);
-udpServer.start();
+// Socket.IO를 apiRoutes에 전달
+apiRoutes.setSocketIO(io);
 
 // 경매 종료 처리 스케줄러 (30초마다 실행)
 const AUCTION_CHECK_INTERVAL = 30 * 1000; // 30초
@@ -135,15 +145,18 @@ apiRoutes.processExpiredAuctions();
 
 console.log("경매 종료 처리 스케줄러 시작 (30초마다 확인)");
 
+// HTTP + WebSocket 서버 시작
+const HTTP_PORT = process.env.HTTP_PORT || 3000;
+server.listen(HTTP_PORT, () => {
+  console.log("=================================");
+  console.log(`✓ HTTP 서버 실행: http://localhost:${HTTP_PORT}`);
+  console.log(`✓ WebSocket 서버 실행 중`);
+  console.log("=================================\n");
+});
+
 // 프로세스 종료 처리
 process.on("SIGINT", () => {
   console.log("\n서버를 종료합니다...");
-  udpServer.stop();
+  io.close();
   process.exit(0);
 });
-
-console.log("=================================");
-console.log(`HTTP 서버: http://localhost:${HTTP_PORT}`);
-console.log(`TCP 서버: localhost:${TCP_PORT}`);
-console.log(`UDP 서버: localhost:${UDP_PORT}`);
-console.log("=================================\n");

@@ -9,17 +9,23 @@
     "migrate-passwords": "node scripts/migratePasswords.js",
     "migrate-buy-now": "node scripts/addBuyNowPrice.js"
   },
-  "keywords": ["auction", "saas", "tcp", "udp"],
+  "keywords": [
+    "auction",
+    "saas",
+    "tcp",
+    "udp"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "mysql2": "^3.6.5",
-    "dotenv": "^16.3.1",
-    "cors": "^2.8.5",
     "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
     "express-session": "^1.17.3",
-    "ejs": "^3.1.9"
+    "mysql2": "^3.6.5",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
