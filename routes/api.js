@@ -122,13 +122,13 @@ router.post('/bids', async (req, res) => {
 
         const item = items[0];
 
-        if (bidAmount <= item.current_price) {
+        if (parseFloat(bidAmount) <= parseFloat(item.current_price)) {
             return res.status(400).json({ success: false, message: '현재가보다 높은 금액을 입찰해야 합니다.' });
         }
 
         // 사용자 잔액 확인
         const [users] = await db.query('SELECT balance FROM users WHERE id = ?', [userId]);
-        if (users.length === 0 || users[0].balance < bidAmount) {
+        if (users.length === 0 || parseFloat(users[0].balance) < parseFloat(bidAmount)) {
             return res.status(400).json({ success: false, message: '잔액이 부족합니다.' });
         }
 
@@ -244,8 +244,8 @@ router.post('/buy-now', async (req, res) => {
             return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
         }
 
-        const buyerBalance = users[0].balance;
-        if (buyerBalance < item.buy_now_price) {
+        const buyerBalance = parseFloat(users[0].balance);
+        if (buyerBalance < parseFloat(item.buy_now_price)) {
             return res.status(400).json({
                 success: false,
                 message: '잔액이 부족합니다.',
@@ -389,7 +389,7 @@ async function processExpiredAuctions() {
                         [bid.user_id]
                     );
 
-                    if (buyer.length > 0 && buyer[0].balance >= bid.bid_amount) {
+                    if (buyer.length > 0 && parseFloat(buyer[0].balance) >= parseFloat(bid.bid_amount)) {
                         // 구매자 잔액 차감
                         await connection.query(
                             'UPDATE users SET balance = balance - ? WHERE id = ?',

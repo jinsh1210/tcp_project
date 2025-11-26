@@ -145,12 +145,31 @@
           </div>
           <div class="form-group">
             <label class="form-label">경매 종료 시간</label>
-            <input
-              type="datetime-local"
-              class="form-input"
-              id="itemEndTime"
-              required
-            />
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+              <select class="form-input" id="endYear" required>
+                <option value="">연도</option>
+              </select>
+              <select class="form-input" id="endMonth" required>
+                <option value="">월</option>
+              </select>
+              <select class="form-input" id="endDay" required>
+                <option value="">일</option>
+              </select>
+            </div>
+            <div class="time-picker-container">
+              <div class="time-picker-wheel">
+                <div class="time-picker-label">시</div>
+                <div class="time-picker-scroll" id="hourPicker">
+                  <div class="time-picker-items" id="hourItems"></div>
+                </div>
+              </div>
+              <div class="time-picker-wheel">
+                <div class="time-picker-label">분</div>
+                <div class="time-picker-scroll" id="minutePicker">
+                  <div class="time-picker-items" id="minuteItems"></div>
+                </div>
+              </div>
+            </div>
           </div>
           <button type="submit" class="submit-button">
             <i data-lucide="check"></i>
@@ -498,14 +517,183 @@
           }
       }
 
+      // 시간 선택기 변수
+      let selectedHour = 12;
+      let selectedMinute = 0;
+
+      // 시간 선택기 초기화
+      function initializeTimePicker() {
+          const hourItems = document.getElementById('hourItems');
+          const minuteItems = document.getElementById('minuteItems');
+
+          // 시간 아이템 생성 (0-23)
+          for (let i = 0; i < 24; i++) {
+              const item = document.createElement('div');
+              item.className = 'time-picker-item';
+              item.textContent = String(i).padStart(2, '0');
+              item.dataset.value = i;
+              item.onclick = () => scrollToValue('hour', i);
+              hourItems.appendChild(item);
+          }
+
+          // 분 아이템 생성 (5분 단위: 0, 5, 10, ..., 55)
+          for (let i = 0; i < 60; i += 5) {
+              const item = document.createElement('div');
+              item.className = 'time-picker-item';
+              item.textContent = String(i).padStart(2, '0');
+              item.dataset.value = i;
+              item.onclick = () => scrollToValue('minute', i / 5);
+              minuteItems.appendChild(item);
+          }
+
+          // 스크롤 이벤트 리스너
+          const hourPicker = document.getElementById('hourPicker');
+          const minutePicker = document.getElementById('minutePicker');
+
+          let hourScrollTimeout;
+          hourPicker.addEventListener('scroll', () => {
+              clearTimeout(hourScrollTimeout);
+              hourScrollTimeout = setTimeout(() => {
+                  snapToValue('hour');
+              }, 150);
+              updateSelectedItems('hour');
+          });
+
+          let minuteScrollTimeout;
+          minutePicker.addEventListener('scroll', () => {
+              clearTimeout(minuteScrollTimeout);
+              minuteScrollTimeout = setTimeout(() => {
+                  snapToValue('minute');
+              }, 150);
+              updateSelectedItems('minute');
+          });
+
+          // 초기 위치 설정
+          setTimeout(() => {
+              scrollToValue('hour', 12, false);
+              scrollToValue('minute', 0, false);
+          }, 0);
+      }
+
+      function scrollToValue(type, value, smooth = true) {
+          const picker = document.getElementById(type === 'hour' ? 'hourPicker' : 'minutePicker');
+          const itemHeight = 40;
+          const scrollTop = value * itemHeight;
+
+          if (smooth) {
+              picker.scrollTo({ top: scrollTop, behavior: 'smooth' });
+          } else {
+              picker.scrollTop = scrollTop;
+          }
+
+          if (type === 'hour') {
+              selectedHour = value;
+          } else {
+              // 분은 5분 단위이므로 실제 분 값으로 변환
+              selectedMinute = value * 5;
+          }
+          updateSelectedItems(type);
+      }
+
+      function snapToValue(type) {
+          const picker = document.getElementById(type === 'hour' ? 'hourPicker' : 'minutePicker');
+          const itemHeight = 40;
+          const scrollTop = picker.scrollTop;
+          const value = Math.round(scrollTop / itemHeight);
+
+          scrollToValue(type, value, true);
+      }
+
+      function updateSelectedItems(type) {
+          const picker = document.getElementById(type === 'hour' ? 'hourPicker' : 'minutePicker');
+          const items = picker.querySelectorAll('.time-picker-item');
+          const itemHeight = 40;
+          const scrollTop = picker.scrollTop;
+          const centerValue = Math.round(scrollTop / itemHeight);
+
+          items.forEach((item, index) => {
+              if (index === centerValue) {
+                  item.classList.add('selected');
+              } else {
+                  item.classList.remove('selected');
+              }
+          });
+      }
+
+      // 날짜 선택기 초기화
+      function initializeDateSelectors() {
+          const yearSelect = document.getElementById('endYear');
+          const monthSelect = document.getElementById('endMonth');
+          const daySelect = document.getElementById('endDay');
+
+          // 현재 날짜
+          const now = new Date();
+          const currentYear = now.getFullYear();
+          const currentMonth = now.getMonth() + 1; // 0-11 -> 1-12
+          const currentDay = now.getDate();
+
+          // 연도 옵션 (현재 연도부터 +2년까지)
+          for (let year = currentYear; year <= currentYear + 2; year++) {
+              const option = document.createElement('option');
+              option.value = year;
+              option.textContent = year + '년';
+              yearSelect.appendChild(option);
+          }
+
+          // 월 옵션 (1-12)
+          for (let month = 1; month <= 12; month++) {
+              const option = document.createElement('option');
+              option.value = month;
+              option.textContent = month + '월';
+              monthSelect.appendChild(option);
+          }
+
+          // 일 옵션 업데이트 함수
+          function updateDays() {
+              const year = parseInt(yearSelect.value) || currentYear;
+              const month = parseInt(monthSelect.value) || 1;
+              const daysInMonth = new Date(year, month, 0).getDate();
+
+              daySelect.innerHTML = '<option value="">일</option>';
+              for (let day = 1; day <= daysInMonth; day++) {
+                  const option = document.createElement('option');
+                  option.value = day;
+                  option.textContent = day + '일';
+                  daySelect.appendChild(option);
+              }
+          }
+
+          // 연도나 월이 변경되면 일 옵션 업데이트
+          yearSelect.addEventListener('change', updateDays);
+          monthSelect.addEventListener('change', updateDays);
+
+          // 초기 일 옵션 생성
+          updateDays();
+
+          // 오늘 날짜를 디폴트로 설정
+          yearSelect.value = currentYear;
+          monthSelect.value = currentMonth;
+          // 일 옵션이 생성된 후 현재 일자 선택
+          setTimeout(() => {
+              daySelect.value = currentDay;
+          }, 0);
+      }
+
       function openAddItemModal() {
           document.getElementById('addItemModal').classList.add('active');
+          initializeDateSelectors();
+          initializeTimePicker();
           lucide.createIcons();
       }
 
       function closeAddItemModal() {
           document.getElementById('addItemModal').classList.remove('active');
           document.getElementById('addItemForm').reset();
+          // 시간 선택기 초기화
+          document.getElementById('hourItems').innerHTML = '';
+          document.getElementById('minuteItems').innerHTML = '';
+          selectedHour = 12;
+          selectedMinute = 0;
       }
 
       async function submitNewItem(event) {
@@ -514,7 +702,21 @@
           const description = document.getElementById('itemDescription').value;
           const startingPrice = document.getElementById('itemPrice').value;
           const buyNowPrice = document.getElementById('itemBuyNowPrice').value;
-          const endTime = document.getElementById('itemEndTime').value;
+
+          // 날짜/시간 조합
+          const year = document.getElementById('endYear').value;
+          const month = document.getElementById('endMonth').value;
+          const day = document.getElementById('endDay').value;
+          const hour = String(selectedHour);
+          const minute = String(selectedMinute);
+
+          if (!year || !month || !day) {
+              showNotification('경매 종료 날짜를 선택해주세요.', 'error');
+              return;
+          }
+
+          // ISO 8601 형식으로 변환
+          const endTime = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:00`;
 
           // 즉시 구매가 유효성 검사
           if (buyNowPrice && parseFloat(buyNowPrice) <= parseFloat(startingPrice)) {
@@ -638,8 +840,8 @@
                                   <span class="comment-author">${comment.username}</span>
                                   <span class="comment-date">${new Date(comment.created_at).toLocaleString()}</span>
                                   ${comment.user_id === CURRENT_USER_ID ? `
-                                      <button class="delete-button" style="padding: 5px 10px; font-size: 0.85em; margin-left: auto;" onclick="deleteComment(${comment.id}, ${postId})">
-                                          <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i>
+                                      <button class="delete-button" style="padding: 4px 8px; font-size: 0.75em; margin-left: auto; gap: 3px;" onclick="deleteComment(${comment.id}, ${postId})">
+                                          <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
                                           삭제
                                       </button>
                                   ` : ''}
@@ -655,8 +857,8 @@
                           <span>${new Date(post.created_at).toLocaleString()}</span> ·
                           <span>조회 ${post.views}</span>
                           ${post.user_id === CURRENT_USER_ID ? `
-                              <button class="delete-button" style="padding: 5px 10px; font-size: 0.85em; margin-left: auto;" onclick="deletePost(${postId})">
-                                  <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i>
+                              <button class="delete-button" style="padding: 4px 8px; font-size: 0.75em; margin-left: auto; gap: 3px;" onclick="deletePost(${postId})">
+                                  <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
                                   삭제
                               </button>
                           ` : ''}
