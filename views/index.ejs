@@ -370,6 +370,15 @@
       }
 
       // ===== 경매 기능 =====
+      // 입찰가를 localStorage에 저장
+      function saveBidToStorage(itemId, value) {
+          if (value) {
+              localStorage.setItem(`bid_${itemId}`, value);
+          } else {
+              localStorage.removeItem(`bid_${itemId}`);
+          }
+      }
+
       async function loadItems() {
           try {
               const response = await fetch(`${API_BASE}/items`);
@@ -393,6 +402,9 @@
               const timeRemaining = getTimeRemaining(endTime);
               const isOwner = item.seller_id === CURRENT_USER_ID;
               const isExpired = new Date() >= endTime;
+
+              // localStorage에서 저장된 입찰가 불러오기
+              const savedBid = localStorage.getItem(`bid_${item.id}`) || '';
 
               return `
                   <div class="item-card">
@@ -448,7 +460,12 @@
                       ${!isExpired ? `
                       <div class="bid-section">
                           <input type="number" class="bid-input" id="bid-${item.id}"
-                                 placeholder="입찰가 입력" min="${parseInt(item.current_price) + 1000}" step="1000">
+                                 placeholder="입찰가 입력"
+                                 min="${parseInt(item.current_price) + 1000}"
+                                 ${item.buy_now_price ? `max="${item.buy_now_price}"` : ''}
+                                 step="1000"
+                                 value="${savedBid}"
+                                 oninput="saveBidToStorage(${item.id}, this.value)">
                           <button class="bid-button" onclick="placeBid(${item.id})">
                               <i data-lucide="gavel" style="width: 18px; height: 18px;"></i>
                               입찰
@@ -475,6 +492,36 @@
           }
 
           try {
+              // 먼저 상품 정보를 가져와서 즉시 구매가 확인
+              const itemResponse = await fetch(`${API_BASE}/items/${itemId}`);
+              const itemData = await itemResponse.json();
+
+              if (!itemData.success) {
+                  showNotification('상품 정보를 불러올 수 없습니다.', 'error');
+                  return;
+              }
+
+              const item = itemData.item;
+
+              // 입찰가가 즉시 구매가보다 높으면 에러
+              if (item.buy_now_price && bidAmount > item.buy_now_price) {
+                  showNotification(`입찰가는 즉시 구매가(₩${formatPrice(item.buy_now_price)})를 초과할 수 없습니다.`, 'error');
+                  return;
+              }
+
+              // 입찰가가 즉시 구매가와 같으면 확인 요청
+              if (item.buy_now_price && bidAmount === item.buy_now_price) {
+                  const confirmed = confirm(`₩${formatPrice(bidAmount)}원에 이 상품을 즉시 구매하시겠습니까?\n\n구매 후 취소가 불가능합니다.`);
+
+                  if (confirmed) {
+                      // 즉시 구매 처리
+                      await buyNow(itemId, bidAmount);
+                  }
+                  // 취소하면 아무것도 하지 않음
+                  return;
+              }
+
+              // 일반 입찰 처리
               const response = await fetch(`${API_BASE}/bids`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -483,6 +530,8 @@
               const data = await response.json();
               if (data.success) {
                   showNotification('입찰에 성공했습니다!', 'success');
+                  // 입찰 성공 시 localStorage에서 삭제
+                  localStorage.removeItem(`bid_${itemId}`);
                   bidInput.value = '';
                   loadItems();
                   loadUserInfo();
@@ -593,6 +642,11 @@
               selectedMinute = value * 5;
           }
           updateSelectedItems(type);
+
+          // 시간 선택 시 localStorage에 저장
+          if (document.getElementById('addItemModal').classList.contains('active')) {
+              saveItemFormData();
+          }
       }
 
       function snapToValue(type) {
@@ -679,10 +733,107 @@
           }, 0);
       }
 
+      // localStorage 키 정의
+      const STORAGE_KEYS = {
+          itemForm: 'auction_item_form',
+          postForm: 'auction_post_form'
+      };
+
+      // 폼 데이터 저장
+      function saveFormData(formKey, data) {
+          localStorage.setItem(formKey, JSON.stringify(data));
+      }
+
+      // 폼 데이터 불러오기
+      function loadFormData(formKey) {
+          const data = localStorage.getItem(formKey);
+          return data ? JSON.parse(data) : null;
+      }
+
+      // 폼 데이터 삭제
+      function clearFormData(formKey) {
+          localStorage.removeItem(formKey);
+      }
+
+      // 상품 등록 폼 데이터 저장
+      function saveItemFormData() {
+          const data = {
+              title: document.getElementById('itemTitle').value,
+              description: document.getElementById('itemDescription').value,
+              price: document.getElementById('itemPrice').value,
+              buyNowPrice: document.getElementById('itemBuyNowPrice').value,
+              year: document.getElementById('endYear').value,
+              month: document.getElementById('endMonth').value,
+              day: document.getElementById('endDay').value,
+              hour: selectedHour,
+              minute: selectedMinute
+          };
+          saveFormData(STORAGE_KEYS.itemForm, data);
+      }
+
+      // 상품 등록 폼 데이터 복원
+      function restoreItemFormData() {
+          const data = loadFormData(STORAGE_KEYS.itemForm);
+          if (data) {
+              if (data.title) document.getElementById('itemTitle').value = data.title;
+              if (data.description) document.getElementById('itemDescription').value = data.description;
+              if (data.price) document.getElementById('itemPrice').value = data.price;
+              if (data.buyNowPrice) document.getElementById('itemBuyNowPrice').value = data.buyNowPrice;
+              if (data.year) document.getElementById('endYear').value = data.year;
+              if (data.month) document.getElementById('endMonth').value = data.month;
+              if (data.day) document.getElementById('endDay').value = data.day;
+              if (data.hour !== undefined) {
+                  selectedHour = data.hour;
+                  // 시간 휠 위치 복원
+                  setTimeout(() => scrollToValue('hour', data.hour), 150);
+              }
+              if (data.minute !== undefined) {
+                  selectedMinute = data.minute;
+                  // 분 휠 위치 복원 (5분 단위이므로 /5)
+                  setTimeout(() => scrollToValue('minute', data.minute / 5), 150);
+              }
+          }
+      }
+
+      // 게시글 폼 데이터 저장
+      function savePostFormData() {
+          const data = {
+              title: document.getElementById('postTitle').value,
+              content: document.getElementById('postContent').value,
+              anonymous: document.getElementById('postAnonymous').checked
+          };
+          saveFormData(STORAGE_KEYS.postForm, data);
+      }
+
+      // 게시글 폼 데이터 복원
+      function restorePostFormData() {
+          const data = loadFormData(STORAGE_KEYS.postForm);
+          if (data) {
+              if (data.title) document.getElementById('postTitle').value = data.title;
+              if (data.content) document.getElementById('postContent').value = data.content;
+              if (data.anonymous !== undefined) document.getElementById('postAnonymous').checked = data.anonymous;
+          }
+      }
+
       function openAddItemModal() {
           document.getElementById('addItemModal').classList.add('active');
           initializeDateSelectors();
           initializeTimePicker();
+
+          // 저장된 폼 데이터 복원
+          setTimeout(() => {
+              restoreItemFormData();
+
+              // 입력 이벤트 리스너 추가
+              ['itemTitle', 'itemDescription', 'itemPrice', 'itemBuyNowPrice', 'endYear', 'endMonth', 'endDay'].forEach(id => {
+                  const element = document.getElementById(id);
+                  if (element) {
+                      element.addEventListener('input', saveItemFormData);
+                      element.addEventListener('change', saveItemFormData);
+                  }
+              });
+          }, 100);
+
           lucide.createIcons();
       }
 
@@ -740,6 +891,7 @@
               const data = await response.json();
               if (data.success) {
                   showNotification('상품이 등록되었습니다!', 'success');
+                  clearFormData(STORAGE_KEYS.itemForm);  // localStorage 데이터 삭제
                   closeAddItemModal();
                   loadItems();
               } else {
@@ -924,6 +1076,21 @@
 
       function openPostModal() {
           document.getElementById('postModal').classList.add('active');
+
+          // 저장된 폼 데이터 복원
+          setTimeout(() => {
+              restorePostFormData();
+
+              // 입력 이벤트 리스너 추가
+              ['postTitle', 'postContent', 'postAnonymous'].forEach(id => {
+                  const element = document.getElementById(id);
+                  if (element) {
+                      element.addEventListener('input', savePostFormData);
+                      element.addEventListener('change', savePostFormData);
+                  }
+              });
+          }, 100);
+
           lucide.createIcons();
       }
 
@@ -947,6 +1114,7 @@
               const data = await response.json();
               if (data.success) {
                   showNotification('게시글이 작성되었습니다!', 'success');
+                  clearFormData(STORAGE_KEYS.postForm);  // localStorage 데이터 삭제
                   closePostModal();
                   loadPosts();
               } else {

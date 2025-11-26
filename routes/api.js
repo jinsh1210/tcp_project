@@ -126,12 +126,21 @@ router.post('/bids', async (req, res) => {
             return res.status(400).json({ success: false, message: '현재가보다 높은 금액을 입찰해야 합니다.' });
         }
 
+        // 즉시 구매가가 있는 경우, 입찰가가 즉시 구매가 이상이면 에러
+        if (item.buy_now_price && parseFloat(bidAmount) >= parseFloat(item.buy_now_price)) {
+            return res.status(400).json({
+                success: false,
+                message: `입찰가는 즉시 구매가(${item.buy_now_price.toLocaleString()}원)보다 낮아야 합니다. 즉시 구매가로 구매하려면 '즉시 구매' 버튼을 이용해주세요.`
+            });
+        }
+
         // 사용자 잔액 확인
         const [users] = await db.query('SELECT balance FROM users WHERE id = ?', [userId]);
         if (users.length === 0 || parseFloat(users[0].balance) < parseFloat(bidAmount)) {
             return res.status(400).json({ success: false, message: '잔액이 부족합니다.' });
         }
 
+        // 일반 입찰 처리
         // 입찰 기록
         await db.query(
             'INSERT INTO bids (item_id, user_id, bid_amount) VALUES (?, ?, ?)',
