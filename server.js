@@ -83,7 +83,7 @@ app.get("/register", (req, res) => {
 });
 
 app.get("/community", requireAuth, (req, res) => {
-  res.render("community", {
+  res.render("index", {
     user: {
       id: req.session.userId,
       username: req.session.username,
@@ -144,6 +144,12 @@ setInterval(() => {
 apiRoutes.processExpiredAuctions();
 
 console.log("경매 종료 처리 스케줄러 시작 (30초마다 확인)");
+
+// 전역 에러 핸들링 미들웨어
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('서버 오류가 발생했습니다.');
+});
 
 // HTTP + WebSocket 서버 시작
 const HTTP_PORT = process.env.HTTP_PORT || 3000;

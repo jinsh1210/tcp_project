@@ -104,9 +104,14 @@ router.post('/items', async (req, res) => {
 // 입찰하기 (HTTP API)
 router.post('/bids', async (req, res) => {
     try {
-        const { itemId, userId, bidAmount } = req.body;
+        const { itemId, bidAmount } = req.body;
+        const userId = req.session.userId;
 
-        if (!itemId || !userId || !bidAmount) {
+        if (!userId) {
+            return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
+        }
+
+        if (!itemId || !bidAmount) {
             return res.status(400).json({ success: false, message: '필수 항목을 입력해주세요.' });
         }
 
@@ -140,18 +145,71 @@ router.post('/bids', async (req, res) => {
             return res.status(400).json({ success: false, message: '잔액이 부족합니다.' });
         }
 
-        // 일반 입찰 처리
-        // 입찰 기록
-        await db.query(
-            'INSERT INTO bids (item_id, user_id, bid_amount) VALUES (?, ?, ?)',
-            [itemId, userId, bidAmount]
-        );
+        // 트랜잭션 시작
+        const connection = await db.getConnection();
+        await connection.beginTransaction();
 
-        // 상품 현재가 업데이트
-        await db.query(
-            'UPDATE items SET current_price = ? WHERE id = ?',
-            [bidAmount, itemId]
-        );
+        try {
+            // 상품 정보 재조회 (Lock을 위해 FOR UPDATE 사용 가능하지만, 여기서는 트랜잭션 내에서 처리)
+            // 주의: MySQL 기본 격리 수준(REPEATABLE READ)에서는 Phantom Read가 발생할 수 있으나,
+            // 여기서는 단순 업데이트 충돌 방지를 위해 트랜잭션 사용.
+            // 더 강력한 동시성 제어를 위해 SELECT ... FOR UPDATE를 사용할 수 있음.
+            const [currentItems] = await connection.query(
+                'SELECT current_price, buy_now_price, status FROM items WHERE id = ? FOR UPDATE',
+                [itemId]
+            );
+
+            if (currentItems.length === 0) {
+                await connection.rollback();
+                return res.status(404).json({ success: false, message: '상품을 찾을 수 없습니다.' });
+            }
+
+            const currentItem = currentItems[0];
+
+            if (currentItem.status !== 'active') {
+                await connection.rollback();
+                return res.status(400).json({ success: false, message: '경매가 종료된 상품입니다.' });
+            }
+
+            if (parseFloat(bidAmount) <= parseFloat(currentItem.current_price)) {
+                await connection.rollback();
+                return res.status(400).json({ success: false, message: '현재가보다 높은 금액을 입찰해야 합니다.' });
+            }
+
+            if (currentItem.buy_now_price && parseFloat(bidAmount) >= parseFloat(currentItem.buy_now_price)) {
+                await connection.rollback();
+                return res.status(400).json({
+                    success: false,
+                    message: `입찰가는 즉시 구매가(${currentItem.buy_now_price.toLocaleString()}원)보다 낮아야 합니다.`
+                });
+            }
+
+            // 사용자 잔액 확인 (Lock)
+            const [currentUser] = await connection.query('SELECT balance FROM users WHERE id = ? FOR UPDATE', [userId]);
+            if (currentUser.length === 0 || parseFloat(currentUser[0].balance) < parseFloat(bidAmount)) {
+                await connection.rollback();
+                return res.status(400).json({ success: false, message: '잔액이 부족합니다.' });
+            }
+
+            // 입찰 기록
+            await connection.query(
+                'INSERT INTO bids (item_id, user_id, bid_amount) VALUES (?, ?, ?)',
+                [itemId, userId, bidAmount]
+            );
+
+            // 상품 현재가 업데이트
+            await connection.query(
+                'UPDATE items SET current_price = ? WHERE id = ?',
+                [bidAmount, itemId]
+            );
+
+            await connection.commit();
+        } catch (error) {
+            await connection.rollback();
+            throw error;
+        } finally {
+            connection.release();
+        }
 
         // 사용자 이름 조회
         const [bidUser] = await db.query('SELECT username FROM users WHERE id = ?', [userId]);
@@ -219,9 +277,14 @@ router.get('/users/:id/bids', async (req, res) => {
 // 즉시 구매
 router.post('/buy-now', async (req, res) => {
     try {
-        const { itemId, userId } = req.body;
+        const { itemId } = req.body;
+        const userId = req.session.userId;
 
-        if (!itemId || !userId) {
+        if (!userId) {
+            return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
+        }
+
+        if (!itemId) {
             return res.status(400).json({ success: false, message: '필수 항목을 입력해주세요.' });
         }
 
@@ -331,7 +394,7 @@ router.post('/buy-now', async (req, res) => {
 router.delete('/items/:id', async (req, res) => {
     try {
         const itemId = req.params.id;
-        const userId = req.body.userId;
+        const userId = req.session.userId;
 
         if (!userId) {
             return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });

@@ -238,6 +238,17 @@
       const CURRENT_USER_ID = <%= user.id %>;
       let currentTab = 'auction';
 
+      // XSS 방지를 위한 HTML 이스케이프 함수
+      function escapeHtml(text) {
+        if (!text) return '';
+        return text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
       // WebSocket 연결
       const socket = io();
 
@@ -415,7 +426,9 @@
                               ${isExpired ? '종료' : '진행중'}
                           </span>
                       </div>
-                      <p class="item-description">${item.description || '설명 없음'}</p>
+                      </div>
+                      <p class="item-description">${escapeHtml(item.description) || '설명 없음'}</p>
+                      <div class="item-price">
                       <div class="item-price">
                           <div class="price-label">현재가</div>
                           <div class="price-amount">${formatPrice(item.current_price)}원</div>
@@ -525,7 +538,7 @@
               const response = await fetch(`${API_BASE}/bids`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ itemId, userId: CURRENT_USER_ID, bidAmount })
+                  body: JSON.stringify({ itemId, bidAmount })
               });
               const data = await response.json();
               if (data.success) {
@@ -551,7 +564,7 @@
               const response = await fetch(`${API_BASE}/items/${itemId}`, {
                   method: 'DELETE',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ userId: CURRENT_USER_ID })
+                  body: JSON.stringify({})
               });
               const data = await response.json();
               if (data.success) {
@@ -914,8 +927,7 @@
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                      itemId,
-                      userId: CURRENT_USER_ID
+                      itemId
                   })
               });
               const data = await response.json();
@@ -1057,7 +1069,7 @@
               const response = await fetch('/api/community/comments', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ postId, userId: CURRENT_USER_ID, content, isAnonymous })
+                  body: JSON.stringify({ postId, content, isAnonymous })
               });
               const data = await response.json();
 
@@ -1109,7 +1121,7 @@
               const response = await fetch('/api/community/posts', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ userId: CURRENT_USER_ID, title, content, isAnonymous })
+                  body: JSON.stringify({ title, content, isAnonymous })
               });
               const data = await response.json();
               if (data.success) {
@@ -1136,7 +1148,7 @@
               const response = await fetch(`/api/community/posts/${postId}`, {
                   method: 'DELETE',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ userId: CURRENT_USER_ID })
+                  body: JSON.stringify({})
               });
               const data = await response.json();
 
@@ -1163,7 +1175,7 @@
               const response = await fetch(`/api/community/comments/${commentId}`, {
                   method: 'DELETE',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ userId: CURRENT_USER_ID })
+                  body: JSON.stringify({})
               });
               const data = await response.json();
 

@@ -72,9 +72,14 @@ router.get('/posts/:id', async (req, res) => {
 // 게시글 작성
 router.post('/posts', async (req, res) => {
     try {
-        const { userId, title, content, isAnonymous } = req.body;
+        const { title, content, isAnonymous } = req.body;
+        const userId = req.session.userId;
 
-        if (!userId || !title || !content) {
+        if (!userId) {
+            return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
+        }
+
+        if (!title || !content) {
             return res.status(400).json({ success: false, message: '필수 항목을 입력해주세요.' });
         }
 
@@ -93,9 +98,14 @@ router.post('/posts', async (req, res) => {
 // 댓글 작성
 router.post('/comments', async (req, res) => {
     try {
-        const { postId, userId, content, isAnonymous } = req.body;
+        const { postId, content, isAnonymous } = req.body;
+        const userId = req.session.userId;
 
-        if (!postId || !userId || !content) {
+        if (!userId) {
+            return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
+        }
+
+        if (!postId || !content) {
             return res.status(400).json({ success: false, message: '필수 항목을 입력해주세요.' });
         }
 
@@ -115,7 +125,7 @@ router.post('/comments', async (req, res) => {
 router.delete('/posts/:id', async (req, res) => {
     try {
         const postId = req.params.id;
-        const userId = req.body.userId;
+        const userId = req.session.userId;
 
         if (!userId) {
             return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
@@ -146,7 +156,7 @@ router.delete('/posts/:id', async (req, res) => {
 router.delete('/comments/:id', async (req, res) => {
     try {
         const commentId = req.params.id;
-        const userId = req.body.userId;
+        const userId = req.session.userId;
 
         if (!userId) {
             return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
