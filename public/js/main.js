@@ -38,6 +38,41 @@ function escapeHtml(text) {
     .replace(/'/g, "&#039;");
 }
 
+// ===== API 헬퍼 함수 =====
+async function apiRequest(url, options = {}) {
+  const response = await fetch(url, options);
+  const data = await response.json();
+  return data;
+}
+
+async function apiGet(url) {
+  return apiRequest(url);
+}
+
+async function apiPost(url, body) {
+  return apiRequest(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function apiDelete(url, body = {}) {
+  return apiRequest(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function apiPut(url, body) {
+  return apiRequest(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 function setupSocketListeners() {
   // 연결 성공
   socket.on("connect", () => {
@@ -171,105 +206,77 @@ function switchTab(tab, fromEvent = true) {
 
 // 관리자 확인
 async function checkAdmin() {
-  try {
-    const response = await fetch("/auth/me");
-    const data = await response.json();
-    if (data.success && data.user.role === "admin") {
-      document.getElementById("adminTab").style.display = "flex";
-    }
-  } catch (error) {
-    console.error("관리자 확인 에러:", error);
+  const data = await apiGet("/auth/me");
+  if (data.success && data.user.role === "admin") {
+    document.getElementById("adminTab").style.display = "flex";
   }
 }
 
 async function logout() {
-  try {
-    const response = await fetch("/auth/logout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    const data = await response.json();
-    if (data.success) window.location.href = "/login";
-  } catch (error) {
-    console.error("로그아웃 에러:", error);
-  }
+  const data = await apiPost("/auth/logout");
+  if (data.success) window.location.href = "/login";
 }
 
 async function loadUserInfo() {
-  try {
-    const response = await fetch("/auth/me");
-    const data = await response.json();
-    if (data.success) {
-      document.getElementById("userBalance").textContent =
-        formatPrice(data.user.balance) + "원";
-    }
-  } catch (error) {
-    console.error("사용자 정보 로드 에러:", error);
+  const data = await apiGet("/auth/me");
+  if (data.success) {
+    document.getElementById("userBalance").textContent =
+      formatPrice(data.user.balance) + "원";
   }
 }
 
 // ===== 경매 기능 =====
 
 async function loadItems() {
-  try {
-    const response = await fetch(`${API_BASE}/items`);
-    const data = await response.json();
-    if (data.success) displayItems(data.items);
-  } catch (error) {
-    console.error("상품 로드 에러:", error);
-  }
+  const data = await apiGet(`${API_BASE}/items`);
+  if (data.success) displayItems(data.items);
 }
 
 // 개별 상품 업데이트 (WebSocket용)
 async function updateSingleItem(itemId) {
-  try {
-    const response = await fetch(`${API_BASE}/items/${itemId}`);
-    const data = await response.json();
+  const data = await apiGet(`${API_BASE}/items/${itemId}`);
 
-    const itemCard = document.querySelector(`[data-item-id="${itemId}"]`);
+  const itemCard = document.querySelector(`[data-item-id="${itemId}"]`);
 
-    if (data.success && data.item) {
-      const item = data.item;
+  if (data.success && data.item) {
+    const item = data.item;
 
-      // 상품이 sold나 expired 상태면 카드 제거
-      if (item.status !== "active") {
-        if (itemCard) {
-          itemCard.remove();
-          lucide.createIcons();
-        }
-        return;
-      }
-
-      if (itemCard) {
-        // 기존 입찰가 입력값 저장
-        const bidInput = itemCard.querySelector(`#bid-${itemId}`);
-        const savedBidValue = bidInput ? bidInput.value : "";
-
-        // 상품 카드 HTML 생성
-        const newCardHTML = generateItemCardHTML(item);
-
-        // 카드 교체
-        itemCard.outerHTML = newCardHTML;
-
-        // 입찰가 입력값 복원
-        if (savedBidValue) {
-          const newBidInput = document.querySelector(`#bid-${itemId}`);
-          if (newBidInput) {
-            newBidInput.value = savedBidValue;
-          }
-        }
-
-        lucide.createIcons();
-      }
-    } else {
-      // 상품을 찾을 수 없으면 카드 제거
+    // 상품이 sold나 expired 상태면 카드 제거
+    if (item.status !== "active") {
       if (itemCard) {
         itemCard.remove();
         lucide.createIcons();
       }
+      return;
     }
-  } catch (error) {
-    console.error("개별 상품 업데이트 에러:", error);
+
+    if (itemCard) {
+      // 기존 입찰가 입력값 저장
+      const bidInput = itemCard.querySelector(`#bid-${itemId}`);
+      const savedBidValue = bidInput ? bidInput.value : "";
+
+      // 상품 카드 HTML 생성
+      const newCardHTML = generateItemCardHTML(item);
+
+      // 카드 교체
+      itemCard.outerHTML = newCardHTML;
+
+      // 입찰가 입력값 복원
+      if (savedBidValue) {
+        const newBidInput = document.querySelector(`#bid-${itemId}`);
+        if (newBidInput) {
+          newBidInput.value = savedBidValue;
+        }
+      }
+
+      lucide.createIcons();
+    }
+  } else {
+    // 상품을 찾을 수 없으면 카드 제거
+    if (itemCard) {
+      itemCard.remove();
+      lucide.createIcons();
+    }
   }
 }
 
@@ -408,8 +415,7 @@ async function placeBid(itemId) {
 
   try {
     // 먼저 상품 정보를 가져와서 즉시 구매가 확인
-    const itemResponse = await fetch(`${API_BASE}/items/${itemId}`);
-    const itemData = await itemResponse.json();
+    const itemData = await apiGet(`${API_BASE}/items/${itemId}`);
 
     if (!itemData.success) {
       showNotification("상품 정보를 불러올 수 없습니다.", "error");
@@ -418,40 +424,21 @@ async function placeBid(itemId) {
 
     const item = itemData.item;
 
-    // 입찰가가 즉시 구매가보다 높으면 에러
-    if (item.buy_now_price && bidAmount > item.buy_now_price) {
-      showNotification(
-        `입찰가는 즉시 구매가(₩${formatPrice(
+    // 즉시 구매가가 있고, 입찰가가 즉시 구매가 이상이면 경고
+    if (item.buy_now_price && bidAmount >= parseFloat(item.buy_now_price)) {
+      const confirmBuy = confirm(
+        `입찰가(₩${formatPrice(bidAmount)})가 즉시 구매가(₩${formatPrice(
           item.buy_now_price
-        )})를 초과할 수 없습니다.`,
-        "error"
+        )})와 같거나 높습니다.\n\n즉시 구매하시겠습니까?`
       );
-      return;
-    }
-
-    // 입찰가가 즉시 구매가와 같으면 확인 요청
-    if (item.buy_now_price && bidAmount === item.buy_now_price) {
-      const confirmed = confirm(
-        `₩${formatPrice(
-          bidAmount
-        )}원에 이 상품을 즉시 구매하시겠습니까?\n\n구매 후 취소가 불가능합니다.`
-      );
-
-      if (confirmed) {
-        // 즉시 구매 처리
+      if (confirmBuy) {
         await buyNow(itemId, bidAmount);
       }
-      // 취소하면 아무것도 하지 않음
       return;
     }
 
     // 일반 입찰 처리
-    const response = await fetch(`${API_BASE}/bids`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemId, bidAmount }),
-    });
-    const data = await response.json();
+    const data = await apiPost(`${API_BASE}/bids`, { itemId, bidAmount });
     if (data.success) {
       showNotification("입찰에 성공했습니다!", "success");
       bidInput.value = "";
@@ -461,7 +448,6 @@ async function placeBid(itemId) {
       showNotification(data.message, "error");
     }
   } catch (error) {
-    console.error("입찰 에러:", error);
     showNotification("입찰에 실패했습니다.", "error");
   }
 }
@@ -470,12 +456,7 @@ async function deleteItem(itemId) {
   if (!confirm("정말 이 상품을 삭제하시겠습니까?")) return;
 
   try {
-    const response = await fetch(`${API_BASE}/items/${itemId}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    const data = await response.json();
+    const data = await apiDelete(`${API_BASE}/items/${itemId}`);
     if (data.success) {
       showNotification("상품이 삭제되었습니다.", "success");
       loadItems();
@@ -483,7 +464,6 @@ async function deleteItem(itemId) {
       showNotification(data.message, "error");
     }
   } catch (error) {
-    console.error("삭제 에러:", error);
     showNotification("삭제에 실패했습니다.", "error");
   }
 }
@@ -642,19 +622,13 @@ async function submitNewItem(event) {
   }
 
   try {
-    const response = await fetch(`${API_BASE}/items`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sellerId: window.APP_DATA.userId,
-        title,
-        description,
-        startingPrice,
-        buyNowPrice: buyNowPrice || null,
-        endTime,
-      }),
+    const data = await apiPost(`${API_BASE}/items`, {
+      title,
+      description,
+      startingPrice,
+      buyNowPrice: buyNowPrice || null,
+      endTime: formattedEndTime,
     });
-    const data = await response.json();
     if (data.success) {
       showNotification("상품이 등록되었습니다!", "success");
       clearFormData(STORAGE_KEYS.itemForm); // localStorage 데이터 삭제
@@ -664,7 +638,6 @@ async function submitNewItem(event) {
       showNotification(data.message, "error");
     }
   } catch (error) {
-    console.error("상품 등록 에러:", error);
     showNotification("상품 등록에 실패했습니다.", "error");
   }
 }
@@ -682,14 +655,7 @@ async function buyNow(itemId, price) {
   }
 
   try {
-    const response = await fetch(`${API_BASE}/buy-now`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        itemId,
-      }),
-    });
-    const data = await response.json();
+    const data = await apiPost(`${API_BASE}/buy-now`, { itemId });
 
     if (data.success) {
       showNotification(
@@ -713,20 +679,14 @@ async function buyNow(itemId, price) {
       }
     }
   } catch (error) {
-    console.error("즉시 구매 에러:", error);
     showNotification("즉시 구매에 실패했습니다.", "error");
   }
 }
 
 // ===== 커뮤니티 기능 =====
 async function loadPosts() {
-  try {
-    const response = await fetch("/api/community/posts");
-    const data = await response.json();
-    if (data.success) displayPosts(data.posts);
-  } catch (error) {
-    console.error("게시글 로드 에러:", error);
-  }
+  const data = await apiGet("/api/community/posts");
+  if (data.success) displayPosts(data.posts);
 }
 
 function displayPosts(posts) {
@@ -769,8 +729,7 @@ function displayPosts(posts) {
 
 async function openPostDetail(postId) {
   try {
-    const response = await fetch(`/api/community/posts/${postId}`);
-    const data = await response.json();
+    const data = await apiGet(`/api/community/posts/${postId}`);
 
     if (data.success) {
       const post = data.post;
@@ -849,7 +808,6 @@ async function openPostDetail(postId) {
       lucide.createIcons();
     }
   } catch (error) {
-    console.error("게시글 상세 조회 에러:", error);
     showNotification("게시글을 불러오는데 실패했습니다.", "error");
   }
 }
@@ -864,12 +822,11 @@ async function submitComment(event, postId) {
   const isAnonymous = document.getElementById("commentAnonymous").checked;
 
   try {
-    const response = await fetch("/api/community/comments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId, content, isAnonymous }),
+    const data = await apiPost("/api/community/comments", {
+      postId,
+      content,
+      isAnonymous,
     });
-    const data = await response.json();
 
     if (data.success) {
       showNotification("댓글이 작성되었습니다!", "success");
@@ -879,7 +836,6 @@ async function submitComment(event, postId) {
       showNotification(data.message, "error");
     }
   } catch (error) {
-    console.error("댓글 작성 에러:", error);
     showNotification("댓글 작성에 실패했습니다.", "error");
   }
 }
@@ -907,12 +863,11 @@ async function submitPost(event) {
   const isAnonymous = document.getElementById("postAnonymous").checked;
 
   try {
-    const response = await fetch("/api/community/posts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, content, isAnonymous }),
+    const data = await apiPost("/api/community/posts", {
+      title,
+      content,
+      isAnonymous,
     });
-    const data = await response.json();
     if (data.success) {
       showNotification("게시글이 작성되었습니다!", "success");
       clearFormData(STORAGE_KEYS.postForm); // localStorage 데이터 삭제
@@ -922,7 +877,6 @@ async function submitPost(event) {
       showNotification(data.message, "error");
     }
   } catch (error) {
-    console.error("게시글 작성 에러:", error);
     showNotification("게시글 작성에 실패했습니다.", "error");
   }
 }
@@ -934,12 +888,7 @@ async function deletePost(postId) {
   }
 
   try {
-    const response = await fetch(`/api/community/posts/${postId}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    const data = await response.json();
+    const data = await apiDelete(`/api/community/posts/${postId}`);
 
     if (data.success) {
       showNotification("게시글이 삭제되었습니다.", "success");
@@ -949,7 +898,6 @@ async function deletePost(postId) {
       showNotification(data.message, "error");
     }
   } catch (error) {
-    console.error("게시글 삭제 에러:", error);
     showNotification("게시글 삭제에 실패했습니다.", "error");
   }
 }
@@ -961,22 +909,15 @@ async function deleteComment(commentId, postId) {
   }
 
   try {
-    const response = await fetch(`/api/community/comments/${commentId}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    const data = await response.json();
+    const data = await apiDelete(`/api/community/comments/${commentId}`);
 
     if (data.success) {
       showNotification("댓글이 삭제되었습니다.", "success");
-      // 게시글 다시 로드
       openPostDetail(postId);
     } else {
       showNotification(data.message, "error");
     }
   } catch (error) {
-    console.error("댓글 삭제 에러:", error);
     showNotification("댓글 삭제에 실패했습니다.", "error");
   }
 }

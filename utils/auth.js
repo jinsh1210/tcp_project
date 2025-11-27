@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const db = require('../config/database');
 
 const SALT_ROUNDS = 10;
 
@@ -40,8 +41,40 @@ function requireAuth(req, res, next) {
     next();
 }
 
+/**
+ * 관리자 권한 확인 미들웨어
+ */
+async function requireAdmin(req, res, next) {
+    if (!req.session || !req.session.userId) {
+        return res.status(401).json({
+            success: false,
+            message: '로그인이 필요합니다.'
+        });
+    }
+
+    try {
+        const [users] = await db.query('SELECT role FROM users WHERE id = ?', [req.session.userId]);
+
+        if (users.length === 0 || users[0].role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: '관리자 권한이 필요합니다.'
+            });
+        }
+
+        next();
+    } catch (error) {
+        console.error('권한 확인 에러:', error);
+        res.status(500).json({
+            success: false,
+            message: '서버 오류가 발생했습니다.'
+        });
+    }
+}
+
 module.exports = {
     hashPassword,
     verifyPassword,
-    requireAuth
+    requireAuth,
+    requireAdmin
 };
