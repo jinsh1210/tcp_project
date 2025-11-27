@@ -1,7 +1,7 @@
 {
-  "name": "auction-saas",
+  "name": "auction-platform",
   "version": "1.0.0",
-  "description": "SaaS 중고 경매 플랫폼",
+  "description": "실시간 중고 경매 플랫폼",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -11,9 +11,9 @@
   },
   "keywords": [
     "auction",
-    "saas",
-    "tcp",
-    "udp"
+    "realtime",
+    "websocket",
+    "marketplace"
   ],
   "author": "",
   "license": "MIT",
