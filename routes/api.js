@@ -41,7 +41,8 @@ router.get('/items/:id', async (req, res) => {
             SELECT
                 i.*,
                 u.username as seller_name,
-                u.email as seller_email
+                u.email as seller_email,
+                (SELECT COUNT(*) FROM bids WHERE item_id = i.id) as bid_count
             FROM items i
             JOIN users u ON i.seller_id = u.id
             WHERE i.id = ?
@@ -90,10 +91,26 @@ router.post('/items', async (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `, [sellerId, title, description, startingPrice, startingPrice, buyNowPrice || null, endTime]);
 
+        const itemId = result.insertId;
+
+        // 판매자 정보 조회
+        const [sellerInfo] = await db.query('SELECT username FROM users WHERE id = ?', [sellerId]);
+        const sellerName = sellerInfo[0].username;
+
+        // WebSocket으로 모든 클라이언트에게 새 상품 알림
+        if (io) {
+            io.emit('new_item', {
+                itemId,
+                itemTitle: title,
+                sellerName,
+                startingPrice
+            });
+        }
+
         res.json({
             success: true,
             message: '상품이 등록되었습니다.',
-            itemId: result.insertId
+            itemId
         });
     } catch (error) {
         console.error('상품 등록 에러:', error);

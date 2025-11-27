@@ -263,15 +263,29 @@
         lucide.createIcons();
       });
 
-      // 실시간 입찰 알림
-      socket.on('new_bid', (data) => {
-        console.log('새로운 입찰:', data);
-        showNotification(`${data.bidderName}님이 ${data.itemTitle}에 ${data.newPrice.toLocaleString()}원 입찰!`, 'success');
+      // 실시간 새 상품 등록 알림
+      socket.on('new_item', (data) => {
+        console.log('새 상품 등록:', data);
+        showNotification(`${data.sellerName}님이 "${data.itemTitle}" 상품을 등록했습니다!`, 'success');
 
         // 현재 경매 탭이면 목록 새로고침
         if (currentTab === 'auction') {
           loadItems();
         }
+      });
+
+      // 실시간 입찰 알림
+      socket.on('new_bid', (data) => {
+        console.log('새로운 입찰:', data);
+        showNotification(`${data.bidderName}님이 ${data.itemTitle}에 ${data.newPrice.toLocaleString()}원 입찰!`, 'success');
+
+        // 현재 경매 탭이면 해당 상품만 업데이트
+        if (currentTab === 'auction' && data.itemId) {
+          updateSingleItem(data.itemId);
+        }
+
+        // 내가 입찰한 경우 잔액 업데이트
+        loadUserInfo();
       });
 
       // 실시간 경매 종료 알림
@@ -284,10 +298,13 @@
           showNotification(`${data.itemTitle} 경매가 종료되었습니다.`, 'error');
         }
 
-        // 목록 새로고침
-        if (currentTab === 'auction') {
-          loadItems();
+        // 현재 경매 탭이면 해당 상품만 업데이트
+        if (currentTab === 'auction' && data.itemId) {
+          updateSingleItem(data.itemId);
         }
+
+        // 잔액 업데이트 (낙찰자, 판매자, 입찰 환불 등)
+        loadUserInfo();
       });
 
       // 실시간 즉시 구매 알림
@@ -295,10 +312,13 @@
         console.log('즉시 구매:', data);
         showNotification(`⚡ ${data.buyerName}님이 ${data.itemTitle}을(를) 즉시 구매!`, 'success');
 
-        // 목록 새로고침
-        if (currentTab === 'auction') {
-          loadItems();
+        // 현재 경매 탭이면 해당 상품만 업데이트
+        if (currentTab === 'auction' && data.itemId) {
+          updateSingleItem(data.itemId);
         }
+
+        // 잔액 업데이트 (구매자, 판매자)
+        loadUserInfo();
       });
 
       // 연결 해제
@@ -381,14 +401,6 @@
       }
 
       // ===== 경매 기능 =====
-      // 입찰가를 localStorage에 저장
-      function saveBidToStorage(itemId, value) {
-          if (value) {
-              localStorage.setItem(`bid_${itemId}`, value);
-          } else {
-              localStorage.removeItem(`bid_${itemId}`);
-          }
-      }
 
       async function loadItems() {
           try {
@@ -400,6 +412,139 @@
           }
       }
 
+      // 개별 상품 업데이트 (WebSocket용)
+      async function updateSingleItem(itemId) {
+          try {
+              const response = await fetch(`${API_BASE}/items/${itemId}`);
+              const data = await response.json();
+
+              const itemCard = document.querySelector(`[data-item-id="${itemId}"]`);
+
+              if (data.success && data.item) {
+                  const item = data.item;
+
+                  // 상품이 sold나 expired 상태면 카드 제거
+                  if (item.status !== 'active') {
+                      if (itemCard) {
+                          itemCard.remove();
+                          lucide.createIcons();
+                      }
+                      return;
+                  }
+
+                  if (itemCard) {
+                      // 기존 입찰가 입력값 저장
+                      const bidInput = itemCard.querySelector(`#bid-${itemId}`);
+                      const savedBidValue = bidInput ? bidInput.value : '';
+
+                      // 상품 카드 HTML 생성
+                      const newCardHTML = generateItemCardHTML(item);
+
+                      // 카드 교체
+                      itemCard.outerHTML = newCardHTML;
+
+                      // 입찰가 입력값 복원
+                      if (savedBidValue) {
+                          const newBidInput = document.querySelector(`#bid-${itemId}`);
+                          if (newBidInput) {
+                              newBidInput.value = savedBidValue;
+                          }
+                      }
+
+                      lucide.createIcons();
+                  }
+              } else {
+                  // 상품을 찾을 수 없으면 카드 제거
+                  if (itemCard) {
+                      itemCard.remove();
+                      lucide.createIcons();
+                  }
+              }
+          } catch (error) {
+              console.error('개별 상품 업데이트 에러:', error);
+          }
+      }
+
+      // 개별 상품 카드 HTML 생성 (재사용 가능)
+      function generateItemCardHTML(item) {
+          const endTime = new Date(item.end_time);
+          const timeRemaining = getTimeRemaining(endTime);
+          const isOwner = item.seller_id === CURRENT_USER_ID;
+          const isExpired = new Date() >= endTime;
+
+          return `
+              <div class="item-card" data-item-id="${item.id}">
+                  <div class="item-header">
+                      <h3 class="item-title">${item.title}</h3>
+                      <span class="item-status" style="background: ${isExpired ? '#6b7280' : '#10b981'};">
+                          <i data-lucide="${isExpired ? 'x-circle' : 'zap'}" style="width: 14px; height: 14px;"></i>
+                          ${isExpired ? '종료' : '진행중'}
+                      </span>
+                  </div>
+                  <p class="item-description">${escapeHtml(item.description) || '설명 없음'}</p>
+                  <div class="item-price">
+                      <div class="price-label">현재가</div>
+                      <div class="price-amount">${formatPrice(item.current_price)}원</div>
+                  </div>
+                  ${item.buy_now_price ? `
+                      <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+                          <div style="font-size: 0.85em; opacity: 0.9;">즉시 구매가</div>
+                          <div style="font-size: 1.5em; font-weight: bold; margin-top: 3px;">${formatPrice(item.buy_now_price)}원</div>
+                      </div>
+                  ` : ''}
+                  <div class="item-meta">
+                      <div class="meta-item">
+                          <i data-lucide="user" style="width: 16px; height: 16px;"></i>
+                          ${item.seller_name}
+                      </div>
+                      <div class="meta-item">
+                          <i data-lucide="clock" style="width: 16px; height: 16px;"></i>
+                          ${timeRemaining}
+                      </div>
+                      <div class="meta-item">
+                          <i data-lucide="activity" style="width: 16px; height: 16px;"></i>
+                          ${item.bid_count}회 입찰
+                      </div>
+                  </div>
+                  ${isOwner ? `
+                      <div class="item-actions">
+                          <button class="delete-button" onclick="deleteItem(${item.id})">
+                              <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                              삭제
+                          </button>
+                      </div>
+                  ` : `
+                      <div class="item-actions">
+                          ${item.buy_now_price && !isExpired ? `
+                              <button class="chat-button" style="background: #f59e0b;" onclick="buyNow(${item.id}, ${item.buy_now_price})">
+                                  <i data-lucide="zap" style="width: 16px; height: 16px;"></i>
+                                  즉시 구매
+                              </button>
+                          ` : ''}
+                      </div>
+                  `}
+                  ${!isExpired && !isOwner ? `
+                  <div class="bid-section">
+                      <input type="number" class="bid-input" id="bid-${item.id}"
+                             placeholder="입찰가 입력"
+                             min="${parseInt(item.current_price) + 1000}"
+                             ${item.buy_now_price ? `max="${item.buy_now_price}"` : ''}
+                             step="1000">
+                      <button class="bid-button" onclick="placeBid(${item.id})">
+                          <i data-lucide="gavel" style="width: 18px; height: 18px;"></i>
+                          입찰
+                      </button>
+                  </div>
+                  ` : isExpired ? `
+                  <div style="background: #334155; padding: 15px; border-radius: 8px; text-align: center; color: #94a3b8;">
+                      <i data-lucide="clock" style="width: 18px; height: 18px;"></i>
+                      경매가 종료되었습니다
+                  </div>
+                  ` : ''}
+              </div>
+          `;
+      }
+
       function displayItems(items) {
           const container = document.getElementById('itemsContainer');
           if (items.length === 0) {
@@ -408,91 +553,7 @@
               return;
           }
 
-          container.innerHTML = items.map(item => {
-              const endTime = new Date(item.end_time);
-              const timeRemaining = getTimeRemaining(endTime);
-              const isOwner = item.seller_id === CURRENT_USER_ID;
-              const isExpired = new Date() >= endTime;
-
-              // localStorage에서 저장된 입찰가 불러오기
-              const savedBid = localStorage.getItem(`bid_${item.id}`) || '';
-
-              return `
-                  <div class="item-card">
-                      <div class="item-header">
-                          <h3 class="item-title">${item.title}</h3>
-                          <span class="item-status" style="background: ${isExpired ? '#6b7280' : '#10b981'};">
-                              <i data-lucide="${isExpired ? 'x-circle' : 'zap'}" style="width: 14px; height: 14px;"></i>
-                              ${isExpired ? '종료' : '진행중'}
-                          </span>
-                      </div>
-                      </div>
-                      <p class="item-description">${escapeHtml(item.description) || '설명 없음'}</p>
-                      <div class="item-price">
-                      <div class="item-price">
-                          <div class="price-label">현재가</div>
-                          <div class="price-amount">${formatPrice(item.current_price)}원</div>
-                      </div>
-                      ${item.buy_now_price ? `
-                          <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
-                              <div style="font-size: 0.85em; opacity: 0.9;">즉시 구매가</div>
-                              <div style="font-size: 1.5em; font-weight: bold; margin-top: 3px;">${formatPrice(item.buy_now_price)}원</div>
-                          </div>
-                      ` : ''}
-                      <div class="item-meta">
-                          <div class="meta-item">
-                              <i data-lucide="user" style="width: 16px; height: 16px;"></i>
-                              ${item.seller_name}
-                          </div>
-                          <div class="meta-item">
-                              <i data-lucide="clock" style="width: 16px; height: 16px;"></i>
-                              ${timeRemaining}
-                          </div>
-                          <div class="meta-item">
-                              <i data-lucide="activity" style="width: 16px; height: 16px;"></i>
-                              ${item.bid_count}회 입찰
-                          </div>
-                      </div>
-                      ${isOwner ? `
-                          <div class="item-actions">
-                              <button class="delete-button" onclick="deleteItem(${item.id})">
-                                  <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
-                                  삭제
-                              </button>
-                          </div>
-                      ` : `
-                          <div class="item-actions">
-                              ${item.buy_now_price && !isExpired ? `
-                                  <button class="chat-button" style="background: #f59e0b;" onclick="buyNow(${item.id}, ${item.buy_now_price})">
-                                      <i data-lucide="zap" style="width: 16px; height: 16px;"></i>
-                                      즉시 구매
-                                  </button>
-                              ` : ''}
-                          </div>
-                      `}
-                      ${!isExpired ? `
-                      <div class="bid-section">
-                          <input type="number" class="bid-input" id="bid-${item.id}"
-                                 placeholder="입찰가 입력"
-                                 min="${parseInt(item.current_price) + 1000}"
-                                 ${item.buy_now_price ? `max="${item.buy_now_price}"` : ''}
-                                 step="1000"
-                                 value="${savedBid}"
-                                 oninput="saveBidToStorage(${item.id}, this.value)">
-                          <button class="bid-button" onclick="placeBid(${item.id})">
-                              <i data-lucide="gavel" style="width: 18px; height: 18px;"></i>
-                              입찰
-                          </button>
-                      </div>
-                      ` : `
-                      <div style="background: #334155; padding: 15px; border-radius: 8px; text-align: center; color: #94a3b8;">
-                          <i data-lucide="clock" style="width: 18px; height: 18px;"></i>
-                          경매가 종료되었습니다
-                      </div>
-                      `}
-                  </div>
-              `;
-          }).join('');
+          container.innerHTML = items.map(item => generateItemCardHTML(item)).join('');
           lucide.createIcons();
       }
 
@@ -543,10 +604,8 @@
               const data = await response.json();
               if (data.success) {
                   showNotification('입찰에 성공했습니다!', 'success');
-                  // 입찰 성공 시 localStorage에서 삭제
-                  localStorage.removeItem(`bid_${itemId}`);
                   bidInput.value = '';
-                  loadItems();
+                  // WebSocket으로 자동 업데이트되므로 loadItems() 불필요
                   loadUserInfo();
               } else {
                   showNotification(data.message, 'error');
@@ -808,25 +867,25 @@
           }
       }
 
-      // 게시글 폼 데이터 저장
-      function savePostFormData() {
-          const data = {
-              title: document.getElementById('postTitle').value,
-              content: document.getElementById('postContent').value,
-              anonymous: document.getElementById('postAnonymous').checked
-          };
-          saveFormData(STORAGE_KEYS.postForm, data);
-      }
+      // 게시글 폼 데이터 저장 (사용하지 않음 - 모달 닫을 때 초기화하기 위해)
+      // function savePostFormData() {
+      //     const data = {
+      //         title: document.getElementById('postTitle').value,
+      //         content: document.getElementById('postContent').value,
+      //         anonymous: document.getElementById('postAnonymous').checked
+      //     };
+      //     saveFormData(STORAGE_KEYS.postForm, data);
+      // }
 
-      // 게시글 폼 데이터 복원
-      function restorePostFormData() {
-          const data = loadFormData(STORAGE_KEYS.postForm);
-          if (data) {
-              if (data.title) document.getElementById('postTitle').value = data.title;
-              if (data.content) document.getElementById('postContent').value = data.content;
-              if (data.anonymous !== undefined) document.getElementById('postAnonymous').checked = data.anonymous;
-          }
-      }
+      // 게시글 폼 데이터 복원 (사용하지 않음 - 모달 닫을 때 초기화하기 위해)
+      // function restorePostFormData() {
+      //     const data = loadFormData(STORAGE_KEYS.postForm);
+      //     if (data) {
+      //         if (data.title) document.getElementById('postTitle').value = data.title;
+      //         if (data.content) document.getElementById('postContent').value = data.content;
+      //         if (data.anonymous !== undefined) document.getElementById('postAnonymous').checked = data.anonymous;
+      //     }
+      // }
 
       function openAddItemModal() {
           document.getElementById('addItemModal').classList.add('active');
@@ -1004,7 +1063,7 @@
                                   <span class="comment-author">${comment.username}</span>
                                   <span class="comment-date">${new Date(comment.created_at).toLocaleString()}</span>
                                   ${comment.user_id === CURRENT_USER_ID ? `
-                                      <button class="delete-button" style="padding: 4px 8px; font-size: 0.75em; margin-left: auto; gap: 3px;" onclick="deleteComment(${comment.id}, ${postId})">
+                                      <button class="delete-button" style="padding: 4px 8px; font-size: 0.75em; margin-left: auto; gap: 3px; flex: none; width: auto;" onclick="deleteComment(${comment.id}, ${postId})">
                                           <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
                                           삭제
                                       </button>
@@ -1021,7 +1080,7 @@
                           <span>${new Date(post.created_at).toLocaleString()}</span> ·
                           <span>조회 ${post.views}</span>
                           ${post.user_id === CURRENT_USER_ID ? `
-                              <button class="delete-button" style="padding: 4px 8px; font-size: 0.75em; margin-left: auto; gap: 3px;" onclick="deletePost(${postId})">
+                              <button class="delete-button" style="padding: 4px 8px; font-size: 0.75em; margin-left: auto; gap: 3px; flex: none; width: auto;" onclick="deletePost(${postId})">
                                   <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
                                   삭제
                               </button>
@@ -1089,19 +1148,9 @@
       function openPostModal() {
           document.getElementById('postModal').classList.add('active');
 
-          // 저장된 폼 데이터 복원
-          setTimeout(() => {
-              restorePostFormData();
-
-              // 입력 이벤트 리스너 추가
-              ['postTitle', 'postContent', 'postAnonymous'].forEach(id => {
-                  const element = document.getElementById(id);
-                  if (element) {
-                      element.addEventListener('input', savePostFormData);
-                      element.addEventListener('change', savePostFormData);
-                  }
-              });
-          }, 100);
+          // 폼 초기화
+          document.getElementById('postForm').reset();
+          clearFormData(STORAGE_KEYS.postForm);  // localStorage 데이터도 삭제
 
           lucide.createIcons();
       }
@@ -1109,6 +1158,7 @@
       function closePostModal() {
           document.getElementById('postModal').classList.remove('active');
           document.getElementById('postForm').reset();
+          clearFormData(STORAGE_KEYS.postForm);  // localStorage 데이터 삭제
       }
 
       async function submitPost(event) {
@@ -1222,14 +1272,6 @@
       checkAdmin();
       loadUserInfo();
       loadItems();
-
-      // 경매와 커뮤니티는 5초마다 업데이트
-      setInterval(() => {
-          if (currentTab === 'auction') loadItems();
-          else if (currentTab === 'community') loadPosts();
-      }, 5000);
-
-      setInterval(loadUserInfo, 10000);
     </script>
   </body>
 </html>
