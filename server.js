@@ -153,7 +153,7 @@ app.use((err, req, res, next) => {
 
 // HTTP + WebSocket 서버 시작
 const HTTP_PORT = process.env.HTTP_PORT || 3000;
-server.listen(HTTP_PORT, () => {
+server.listen(HTTP_PORT, '0.0.0.0', () => {
   console.log("=================================");
   console.log(`✓ HTTP 서버 실행: http://localhost:${HTTP_PORT}`);
   console.log(`✓ WebSocket 서버 실행 중`);
