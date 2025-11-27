@@ -34,7 +34,7 @@
             <span>잔액:</span>
             <span class="balance-amount" id="userBalance">로딩 중...</span>
           </div>
-          <div class="user-balance" style="color: #10b981;">
+          <div class="user-balance" style="color: #10b981">
             <i data-lucide="users"></i>
             <span id="onlineUsers">1</span>
             <span>명 접속 중</span>
@@ -145,7 +145,14 @@
           </div>
           <div class="form-group">
             <label class="form-label">경매 종료 시간</label>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+            <div
+              style="
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+                margin-bottom: 10px;
+              "
+            >
               <select class="form-input" id="endYear" required>
                 <option value="">연도</option>
               </select>
@@ -202,9 +209,18 @@
               style="min-height: 200px"
             ></textarea>
           </div>
-          <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
-            <input type="checkbox" id="postAnonymous" style="width: auto; cursor: pointer;" />
-            <label for="postAnonymous" style="cursor: pointer; margin: 0;">익명으로 작성</label>
+          <div
+            class="form-group"
+            style="display: flex; align-items: center; gap: 10px"
+          >
+            <input
+              type="checkbox"
+              id="postAnonymous"
+              style="width: auto; cursor: pointer"
+            />
+            <label for="postAnonymous" style="cursor: pointer; margin: 0"
+              >익명으로 작성</label
+            >
           </div>
           <button type="submit" class="submit-button">
             <i data-lucide="check"></i>
@@ -992,7 +1008,7 @@
               const data = await response.json();
 
               if (data.success) {
-                  showNotification(`🎉 ${data.message} 남은 잔액: ₩${formatPrice(data.data.remainingBalance)}`, 'success');
+                  showNotification(`${data.message}\n남은 잔액: ₩${formatPrice(data.data.remainingBalance)}`, 'success');
                   loadItems();
                   loadUserInfo(); // 잔액 업데이트
               } else {
