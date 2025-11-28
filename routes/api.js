@@ -75,9 +75,14 @@ router.get('/items/:id', async (req, res) => {
 // 새 상품 등록
 router.post('/items', async (req, res) => {
     try {
-        const { sellerId, title, description, startingPrice, buyNowPrice, endTime } = req.body;
+        const { title, description, startingPrice, buyNowPrice, endTime } = req.body;
+        const sellerId = req.session.userId;
 
-        if (!sellerId || !title || !startingPrice || !endTime) {
+        if (!sellerId) {
+            return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
+        }
+
+        if (!title || title.trim() === '' || !startingPrice || !endTime) {
             return res.status(400).json({ success: false, message: '필수 항목을 입력해주세요.' });
         }
 
@@ -86,10 +91,13 @@ router.post('/items', async (req, res) => {
             return res.status(400).json({ success: false, message: '즉시 구매가는 시작가보다 높아야 합니다.' });
         }
 
+        // ISO 8601 형식을 MySQL DATETIME 형식으로 변환
+        const endTimeFormatted = new Date(endTime).toISOString().slice(0, 19).replace('T', ' ');
+
         const [result] = await db.query(`
             INSERT INTO items (seller_id, title, description, starting_price, current_price, buy_now_price, end_time)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [sellerId, title, description, startingPrice, startingPrice, buyNowPrice || null, endTime]);
+        `, [sellerId, title, description, startingPrice, startingPrice, buyNowPrice || null, endTimeFormatted]);
 
         const itemId = result.insertId;
 

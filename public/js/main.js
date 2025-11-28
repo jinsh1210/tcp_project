@@ -4,12 +4,6 @@ let socket;
 let flatpickrDate;
 let flatpickrTime;
 
-// localStorage 키 정의
-const STORAGE_KEYS = {
-  itemForm: "auction_item_form",
-  postForm: "auction_post_form",
-};
-
 document.addEventListener("DOMContentLoaded", () => {
   // Initialize socket
   socket = io();
@@ -483,53 +477,6 @@ async function deleteItem(itemId) {
   }
 }
 
-// 폼 데이터 저장
-function saveFormData(formKey, data) {
-  localStorage.setItem(formKey, JSON.stringify(data));
-}
-
-// 폼 데이터 불러오기
-function loadFormData(formKey) {
-  const data = localStorage.getItem(formKey);
-  return data ? JSON.parse(data) : null;
-}
-
-// 폼 데이터 삭제
-function clearFormData(formKey) {
-  localStorage.removeItem(formKey);
-}
-
-// 상품 등록 폼 데이터 저장
-function saveItemFormData() {
-  const data = {
-    title: document.getElementById("itemTitle").value,
-    description: document.getElementById("itemDescription").value,
-    price: document.getElementById("itemPrice").value,
-    buyNowPrice: document.getElementById("itemBuyNowPrice").value,
-    endDate: document.getElementById("auctionEndDate").value,
-    endTime: document.getElementById("auctionEndTime").value,
-  };
-  saveFormData(STORAGE_KEYS.itemForm, data);
-}
-
-// 상품 등록 폼 데이터 복원
-function restoreItemFormData() {
-  const data = loadFormData(STORAGE_KEYS.itemForm);
-  if (data) {
-    if (data.title) document.getElementById("itemTitle").value = data.title;
-    if (data.description)
-      document.getElementById("itemDescription").value = data.description;
-    if (data.price) document.getElementById("itemPrice").value = data.price;
-    if (data.buyNowPrice)
-      document.getElementById("itemBuyNowPrice").value = data.buyNowPrice;
-    if (data.endDate && flatpickrDate) {
-      flatpickrDate.setDate(data.endDate);
-    }
-    if (data.endTime && flatpickrTime) {
-      flatpickrTime.setDate(data.endTime);
-    }
-  }
-}
 
 function openAddItemModal() {
   document.getElementById("addItemModal").classList.add("active");
@@ -540,9 +487,6 @@ function openAddItemModal() {
       dateFormat: "Y-m-d",
       minDate: "today",
       locale: "ko",
-      onChange: function () {
-        saveItemFormData();
-      },
     });
   }
 
@@ -554,32 +498,8 @@ function openAddItemModal() {
       dateFormat: "h:i K",
       time_24hr: false,
       locale: "ko",
-      onChange: function () {
-        saveItemFormData();
-      },
     });
   }
-
-  // 저장된 폼 데이터 복원
-  setTimeout(() => {
-    restoreItemFormData();
-
-    // 입력 이벤트 리스너 추가
-    [
-      "itemTitle",
-      "itemDescription",
-      "itemPrice",
-      "itemBuyNowPrice",
-      "auctionEndDate",
-      "auctionEndTime",
-    ].forEach((id) => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.addEventListener("input", saveItemFormData);
-        element.addEventListener("change", saveItemFormData);
-      }
-    });
-  }, 100);
 
   lucide.createIcons();
 }
@@ -646,7 +566,6 @@ async function submitNewItem(event) {
     });
     if (data.success) {
       showNotification("상품이 등록되었습니다!", "success");
-      clearFormData(STORAGE_KEYS.itemForm); // localStorage 데이터 삭제
       closeAddItemModal();
       loadItems();
     } else {
@@ -860,7 +779,6 @@ function openPostModal() {
 
   // 폼 초기화
   document.getElementById("postForm").reset();
-  clearFormData(STORAGE_KEYS.postForm); // localStorage 데이터도 삭제
 
   lucide.createIcons();
 }
@@ -868,7 +786,6 @@ function openPostModal() {
 function closePostModal() {
   document.getElementById("postModal").classList.remove("active");
   document.getElementById("postForm").reset();
-  clearFormData(STORAGE_KEYS.postForm); // localStorage 데이터 삭제
 }
 
 async function submitPost(event) {
@@ -885,7 +802,6 @@ async function submitPost(event) {
     });
     if (data.success) {
       showNotification("게시글이 작성되었습니다!", "success");
-      clearFormData(STORAGE_KEYS.postForm); // localStorage 데이터 삭제
       closePostModal();
       loadPosts();
     } else {
