@@ -166,9 +166,9 @@ function setupSocketListeners() {
 
     // 세션 파괴를 위해 로그아웃 API 호출
     try {
-      await fetch('/auth/logout', { method: 'POST' });
+      await fetch("/auth/logout", { method: "POST" });
     } catch (error) {
-      console.error('로그아웃 실패:', error);
+      console.error("로그아웃 실패:", error);
     }
 
     window.location.href = "/login";
@@ -318,18 +318,6 @@ function generateItemCardHTML(item) {
                   item.current_price
                 )}원</div>
             </div>
-            ${
-              item.buy_now_price
-                ? `
-                <div class="buy-now-badge">
-                    <div class="buy-now-label">즉시 구매가</div>
-                    <div class="buy-now-price">${formatPrice(
-                      item.buy_now_price
-                    )}원</div>
-                </div>
-            `
-                : ""
-            }
             <div class="item-meta">
                 <div class="meta-item">
                     <i data-lucide="user" style="width: 16px; height: 16px;"></i>
@@ -344,57 +332,67 @@ function generateItemCardHTML(item) {
                     ${item.bid_count}회 입찰
                 </div>
             </div>
-            ${
-              isOwner
-                ? `
-                <div class="item-actions">
-                    <button class="delete-button" onclick="deleteItem(${item.id})">
-                        <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
-                        삭제
-                    </button>
-                </div>
-            `
-                : `
-                <div class="item-actions">
+            
+            <div class="action-container">
+                ${
+                  isOwner
+                    ? `
+                    <div class="item-actions">
+                        <button class="delete-button" onclick="deleteItem(${item.id})">
+                            <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                            삭제
+                        </button>
+                    </div>
+                `
+                    : `
                     ${
                       item.buy_now_price && !isExpired
                         ? `
-                        <button class="chat-button buy-now-btn" onclick="buyNow(${item.id}, ${item.buy_now_price})">
-                            <i data-lucide="zap" style="width: 16px; height: 16px;"></i>
-                            즉시 구매
-                        </button>
+                        <div class="buy-now-section">
+                            <button class="buy-now-btn" onclick="buyNow(${
+                              item.id
+                            }, ${item.buy_now_price})">
+                                <i data-lucide="zap" style="width: 18px; height: 18px;"></i>
+                                즉시 구매 (₩${formatPrice(item.buy_now_price)})
+                            </button>
+                        </div>
                     `
                         : ""
                     }
-                </div>
-            `
-            }
-            ${
-              !isExpired && !isOwner
-                ? `
-            <div class="bid-section">
-                <input type="number" class="bid-input" id="bid-${item.id}"
-                       placeholder="입찰가 입력"
-                       min="${parseInt(item.current_price) + 1000}"
-                       ${
-                         item.buy_now_price ? `max="${item.buy_now_price}"` : ""
-                       }
-                       step="1000">
-                <button class="bid-button" onclick="placeBid(${item.id})">
-                    <i data-lucide="gavel" style="width: 18px; height: 18px;"></i>
-                    입찰
-                </button>
+                    
+                    ${
+                      !isExpired
+                        ? `
+                        <div class="bid-section">
+                            <input type="number" class="bid-input" id="bid-${
+                              item.id
+                            }"
+                                   placeholder="입찰가 입력"
+                                   min="${parseInt(item.current_price) + 1000}"
+                                   ${
+                                     item.buy_now_price
+                                       ? `max="${item.buy_now_price}"`
+                                       : ""
+                                   }
+                                   step="1000">
+                            <button class="bid-button" onclick="placeBid(${
+                              item.id
+                            })">
+                                <i data-lucide="gavel" style="width: 18px; height: 18px;"></i>
+                                입찰
+                            </button>
+                        </div>
+                    `
+                        : `
+                        <div class="expired-notice">
+                            <i data-lucide="clock" style="width: 18px; height: 18px;"></i>
+                            경매가 종료되었습니다
+                        </div>
+                    `
+                    }
+                `
+                }
             </div>
-            `
-                : isExpired
-                ? `
-            <div class="expired-notice">
-                <i data-lucide="clock" style="width: 18px; height: 18px;"></i>
-                경매가 종료되었습니다
-            </div>
-            `
-                : ""
-            }
         </div>
     `;
 }
@@ -476,7 +474,6 @@ async function deleteItem(itemId) {
     showNotification("삭제에 실패했습니다.", "error");
   }
 }
-
 
 function openAddItemModal() {
   document.getElementById("addItemModal").classList.add("active");
@@ -669,7 +666,7 @@ async function openPostDetail(postId) {
       const post = data.post;
       const comments = data.comments;
 
-      document.getElementById("detailPostTitle").textContent = post.title;
+      document.getElementById("detailPostTitle").textContent = ""; // Clear default title as we render it in body
 
       const commentsHtml =
         comments.length > 0
@@ -678,18 +675,19 @@ async function openPostDetail(postId) {
                 (comment) => `
                     <div class="comment-item">
                         <div class="comment-header">
-                            <span class="comment-author">${
-                              comment.username
-                            }</span>
-                            <span class="comment-date">${new Date(
-                              comment.created_at
-                            ).toLocaleString()}</span>
+                            <div>
+                                <span class="comment-author">${
+                                  comment.username
+                                }</span>
+                                <span class="comment-date">${new Date(
+                                  comment.created_at
+                                ).toLocaleString()}</span>
+                            </div>
                             ${
                               comment.user_id === window.APP_DATA.userId
                                 ? `
                                 <button class="delete-button delete-comment-btn" onclick="deleteComment(${comment.id}, ${postId})">
-                                    <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
-                                    삭제
+                                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
                                 </button>
                             `
                                 : ""
@@ -700,42 +698,59 @@ async function openPostDetail(postId) {
                 `
               )
               .join("")
-          : '<div class="loading">댓글이 없습니다.</div>';
+          : '<div class="loading">첫 번째 댓글을 남겨보세요!</div>';
 
       document.getElementById("postDetailContent").innerHTML = `
-                <div class="post-detail-meta">
-                    <span>${post.username}</span> ·
-                    <span>${new Date(post.created_at).toLocaleString()}</span> ·
-                    <span>조회 ${post.views}</span>
-                    ${
-                      post.user_id === window.APP_DATA.userId
-                        ? `
-                        <button class="delete-button delete-post-btn" onclick="deletePost(${postId})">
-                            <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
-                            삭제
-                        </button>
-                    `
-                        : ""
-                    }
-                </div>
-                <div class="post-detail-body">${post.content}</div>
-                <hr class="post-divider">
-                <h3 class="comments-title">
-                    <i data-lucide="message-square" style="width: 18px; height: 18px;"></i>
-                    댓글 ${comments.length}개
-                </h3>
-                <div class="comments-list">${commentsHtml}</div>
-                <form class="comment-form" onsubmit="submitComment(event, ${postId})">
-                    <textarea class="form-textarea comment-textarea" id="commentContent" placeholder="댓글을 입력하세요..." required></textarea>
-                    <div class="comment-options">
-                        <input type="checkbox" id="commentAnonymous" class="checkbox-input" />
-                        <label for="commentAnonymous" class="checkbox-label">익명으로 작성</label>
+                <div class="post-detail-container">
+                    <div class="post-detail-header">
+                        <h2 class="post-detail-title">${post.title}</h2>
+                        <div class="post-detail-meta">
+                            <span><i data-lucide="user" style="width: 16px; height: 16px;"></i> ${
+                              post.username
+                            }</span>
+                            <span><i data-lucide="calendar" style="width: 16px; height: 16px;"></i> ${new Date(
+                              post.created_at
+                            ).toLocaleDateString()}</span>
+                            <span><i data-lucide="eye" style="width: 16px; height: 16px;"></i> ${
+                              post.views
+                            }</span>
+                            ${
+                              post.user_id === window.APP_DATA.userId
+                                ? `
+                                <button class="delete-button delete-post-btn" onclick="deletePost(${postId})" style="margin-left: auto; padding: 6px 12px;">
+                                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> 삭제
+                                </button>
+                            `
+                                : ""
+                            }
+                        </div>
                     </div>
-                    <button type="submit" class="submit-button comment-submit-btn">
-                        <i data-lucide="send" style="width: 16px; height: 16px;"></i>
-                        댓글 작성
-                    </button>
-                </form>
+                    
+                    <div class="post-detail-body">${escapeHtml(
+                      post.content
+                    ).replace(/\n/g, "<br>")}</div>
+                    
+                    <div class="comments-section">
+                        <h3 class="comments-title">
+                            <i data-lucide="message-square" style="width: 20px; height: 20px;"></i>
+                            댓글 ${comments.length}개
+                        </h3>
+                        
+                        <div class="comments-list">${commentsHtml}</div>
+                        
+                        <form class="comment-form" onsubmit="submitComment(event, ${postId})">
+                            <textarea class="form-textarea comment-textarea" id="commentContent" placeholder="댓글을 입력하세요..." required></textarea>
+                            <div class="comment-options">
+                                <input type="checkbox" id="commentAnonymous" class="checkbox-input" />
+                                <label for="commentAnonymous" class="checkbox-label">익명으로 작성</label>
+                                <button type="submit" class="submit-button comment-submit-btn">
+                                    <i data-lucide="send" style="width: 16px; height: 16px;"></i>
+                                    등록
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             `;
 
       document.getElementById("postDetailModal").classList.add("active");
