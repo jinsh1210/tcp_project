@@ -551,6 +551,14 @@ h1 i {
   font-family: inherit;
 }
 
+.delete-button.compact {
+  flex: 0 0 auto;
+  padding: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
 .chat-button {
   background: rgba(16, 185, 129, 0.1);
   color: var(--accent-success);
@@ -862,6 +870,32 @@ h1 i {
 .comment-content {
   color: var(--text-secondary);
   line-height: 1.6;
+}
+
+.comments-list {
+  margin-bottom: 25px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+/* Custom scrollbar for comments list */
+.comments-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.comments-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.comments-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.comments-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .comment-form {

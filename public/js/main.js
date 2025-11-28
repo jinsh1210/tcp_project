@@ -686,7 +686,7 @@ async function openPostDetail(postId) {
                             ${
                               comment.user_id === window.APP_DATA.userId
                                 ? `
-                                <button class="delete-button delete-comment-btn" onclick="deleteComment(${comment.id}, ${postId})">
+                                <button class="delete-button delete-comment-btn compact" onclick="deleteComment(${comment.id}, ${postId})" title="삭제">
                                     <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
                                 </button>
                             `
@@ -717,8 +717,8 @@ async function openPostDetail(postId) {
                             ${
                               post.user_id === window.APP_DATA.userId
                                 ? `
-                                <button class="delete-button delete-post-btn" onclick="deletePost(${postId})" style="margin-left: auto; padding: 6px 12px;">
-                                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> 삭제
+                                <button class="delete-button delete-post-btn compact" onclick="deletePost(${postId})" style="margin-left: auto;" title="삭제">
+                                    <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
                                 </button>
                             `
                                 : ""
