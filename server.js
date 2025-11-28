@@ -1,5 +1,44 @@
 require("dotenv").config();
 const express = require("express");
+// 인증 미들웨어
+async function requireAuth(req, res, next) {
+  if (!req.session || !req.session.userId) {
+    // API 요청인 경우 JSON 응답
+    if (req.path.startsWith('/api/')) {
+      return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
+    }
+    return res.redirect("/login");
+  }
+
+  // DB에서 사용자 존재 여부 확인 (삭제된 사용자 차단)
+  try {
+    const [users] = await require("./config/database").query(
+      "SELECT id FROM users WHERE id = ?",
+      [req.session.userId]
+    );
+
+    if (users.length === 0) {
+      // 사용자가 삭제됨 -> 세션 파괴
+      req.session.destroy();
+
+      // API 요청인 경우 JSON 응답
+      if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ success: false, message: '계정이 삭제되었습니다.' });
+      }
+      return res.redirect("/login");
+    }
+
+    next();
+  } catch (error) {
+    console.error("Auth Middleware Error:", error);
+
+    // API 요청인 경우 JSON 응답
+    if (req.path.startsWith('/api/')) {
+      return res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+    }
+    res.status(500).send("서버 오류");
+  }
+}
 const session = require("express-session");
 const cors = require("cors");
 const path = require("path");
@@ -31,25 +70,33 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
 // 세션 설정
-app.use(
-  session({
-    secret:
-      process.env.SESSION_SECRET || "auction-secret-key-change-in-production",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: false, // HTTPS 사용 시 true로 변경
-      httpOnly: true,
-      maxAge: 1000 * 60 * 60 * 24, // 24시간
-    },
-  })
-);
+// 세션 설정
+const sessionMiddleware = session({
+  secret:
+    process.env.SESSION_SECRET || "auction-secret-key-change-in-production",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // HTTPS 사용 시 true로 변경
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 24, // 24시간
+  },
+});
 
+app.use(sessionMiddleware);
+
+// Socket.IO에서 세션 미들웨어 사용
+io.engine.use(sessionMiddleware);
+
+// API 라우트
 // API 라우트
 app.use("/api", apiRoutes);
 app.use("/auth", authRoutes);
-app.use("/api/community", communityRoutes);
+app.use("/api/community", requireAuth, communityRoutes);
 app.use("/api/admin", adminRoutes);
+
+// Socket.IO를 adminRoutes에 전달
+adminRoutes.setSocketIO(io);
 
 // 페이지 라우트
 app.use("/", pageRoutes);
@@ -57,7 +104,15 @@ app.use("/", pageRoutes);
 // WebSocket 연결 관리
 let connectedUsers = 0;
 
-io.on("connection", (socket) => {
+io.on('connection', (socket) => {
+  const session = socket.request.session;
+  
+  if (session && session.userId) {
+    // 로그인한 사용자를 자신의 방에 조인
+    socket.join(`user:${session.userId}`);
+    console.log(`✓ 사용자 인증됨: ${session.username} (ID: ${session.userId})`);
+  }
+
   connectedUsers++;
   console.log(`✓ 사용자 연결: ${socket.id} (현재 ${connectedUsers}명 접속)`);
 

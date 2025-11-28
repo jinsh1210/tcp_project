@@ -1,6 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
+
+// Socket.IO 인스턴스 저장
+let io = null;
+
+function setSocketIO(socketIO) {
+    io = socketIO;
+}
+
+router.setSocketIO = setSocketIO;
+
 const { requireAdmin } = require('../utils/auth');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -86,6 +96,13 @@ router.delete('/users/:id', requireAdmin, asyncHandler(async (req, res) => {
     }
 
     await db.query('DELETE FROM users WHERE id = ?', [req.params.id]);
+
+    // 강제 로그아웃 이벤트 전송
+    if (io) {
+        io.to(`user:${req.params.id}`).emit('force_logout');
+        console.log(`사용자 ${req.params.id} 강제 로그아웃 신호 전송`);
+    }
+
     res.json({ success: true, message: '사용자가 삭제되었습니다.' });
 }));
 

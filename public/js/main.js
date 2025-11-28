@@ -164,6 +164,21 @@ function setupSocketListeners() {
   socket.on("disconnect", () => {
     console.log("✗ WebSocket 연결 해제");
   });
+
+  // 강제 로그아웃 알림
+  socket.on("force_logout", async () => {
+    socket.disconnect();
+    alert("관리자에 의해 계정이 삭제되어 로그아웃됩니다.");
+
+    // 세션 파괴를 위해 로그아웃 API 호출
+    try {
+      await fetch('/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+    }
+
+    window.location.href = "/login";
+  });
 }
 
 // 탭 전환
